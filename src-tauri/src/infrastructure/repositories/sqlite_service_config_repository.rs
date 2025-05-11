@@ -54,9 +54,17 @@ impl SqliteRepository<ServiceConfig> for SqliteServiceConfigRepository {
 
     fn column_names(&self) -> Vec<&str> {
         vec![
-            "id", "name", "service_type", "auth_type", "auth_config",
-            "endpoints", "enabled", "created_at", "updated_at", "last_sync",
-            "metadata"
+            "id",
+            "name",
+            "service_type",
+            "auth_type",
+            "auth_config",
+            "endpoints",
+            "enabled",
+            "created_at",
+            "updated_at",
+            "last_sync",
+            "metadata",
         ]
     }
 

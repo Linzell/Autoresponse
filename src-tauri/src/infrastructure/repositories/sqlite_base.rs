@@ -149,7 +149,10 @@ mod tests {
             })
         }
 
-        fn map_entity_to_params(&self, entity: &TestEntity) -> Vec<Box<dyn rusqlite::ToSql + Send>> {
+        fn map_entity_to_params(
+            &self,
+            entity: &TestEntity,
+        ) -> Vec<Box<dyn rusqlite::ToSql + Send>> {
             vec![
                 Box::new(entity.id.to_string()),
                 Box::new(entity.name.clone()),

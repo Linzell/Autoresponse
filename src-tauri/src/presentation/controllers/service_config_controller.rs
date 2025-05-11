@@ -209,10 +209,10 @@ mod tests {
             .expect_create_service_config()
             .withf(
                 move |name: &String,
-                 service_type: &ServiceType,
-                 auth_type: &AuthType,
-                 auth_config: &AuthConfig,
-                 endpoints: &ServiceEndpoints| {
+                      service_type: &ServiceType,
+                      auth_type: &AuthType,
+                      auth_config: &AuthConfig,
+                      endpoints: &ServiceEndpoints| {
                     *name == expected_name
                         && service_type == &expected_service_type
                         && auth_type == &expected_auth_type

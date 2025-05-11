@@ -2,15 +2,11 @@ pub mod notification_service;
 pub mod service_config_service;
 
 pub use notification_service::{
-    NotificationService,
-    DefaultNotificationService,
-    DynNotificationService,
+    DefaultNotificationService, DynNotificationService, NotificationService,
 };
 
 pub use service_config_service::{
-    ServiceConfigService,
-    DefaultServiceConfigService,
-    DynServiceConfigService,
+    DefaultServiceConfigService, DynServiceConfigService, ServiceConfigService,
 };
 
 #[cfg(test)]
