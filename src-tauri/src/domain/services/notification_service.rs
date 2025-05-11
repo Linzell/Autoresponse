@@ -2,6 +2,7 @@ use crate::domain::{
     entities::{Notification, NotificationMetadata, NotificationPriority, NotificationStatus},
     error::{DomainError, DomainResult},
     repositories::DynNotificationRepository,
+    NotificationSource,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -26,6 +27,10 @@ pub trait NotificationService: Send + Sync {
     async fn get_notifications_by_status(
         &self,
         status: NotificationStatus,
+    ) -> DomainResult<Vec<Notification>>;
+    async fn get_notifications_by_source(
+        &self,
+        source: NotificationSource,
     ) -> DomainResult<Vec<Notification>>;
     async fn mark_as_read(&self, id: Uuid) -> DomainResult<()>;
     async fn mark_action_required(&self, id: Uuid) -> DomainResult<()>;
@@ -73,6 +78,13 @@ impl NotificationService for DefaultNotificationService {
         status: NotificationStatus,
     ) -> DomainResult<Vec<Notification>> {
         self.repository.find_by_status(status).await
+    }
+
+    async fn get_notifications_by_source(
+        &self,
+        source: NotificationSource,
+    ) -> DomainResult<Vec<Notification>> {
+        self.repository.find_by_source(source).await
     }
 
     async fn mark_as_read(&self, id: Uuid) -> DomainResult<()> {

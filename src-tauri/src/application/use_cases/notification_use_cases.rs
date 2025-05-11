@@ -81,22 +81,18 @@ impl NotificationUseCases {
         &self,
         status: NotificationStatus,
     ) -> DomainResult<Vec<Notification>> {
-        let notifications = self.notification_service.get_all_notifications().await?;
-        Ok(notifications
-            .into_iter()
-            .filter(|n| n.status == status)
-            .collect())
+        self.notification_service
+            .get_notifications_by_status(status)
+            .await
     }
 
     pub async fn get_notifications_by_source(
         &self,
         source: NotificationSource,
     ) -> DomainResult<Vec<Notification>> {
-        let notifications = self.notification_service.get_all_notifications().await?;
-        Ok(notifications
-            .into_iter()
-            .filter(|n| n.metadata.source == source)
-            .collect())
+        self.notification_service
+            .get_notifications_by_source(source)
+            .await
     }
 
     pub async fn get_recent_notifications(&self, limit: usize) -> DomainResult<Vec<Notification>> {
@@ -106,11 +102,9 @@ impl NotificationUseCases {
     }
 
     pub async fn get_unread_notifications(&self) -> DomainResult<Vec<Notification>> {
-        let notifications = self.notification_service.get_all_notifications().await?;
-        Ok(notifications
-            .into_iter()
-            .filter(|n| matches!(n.status, NotificationStatus::New))
-            .collect())
+        self.notification_service
+            .get_notifications_by_status(NotificationStatus::New)
+            .await
     }
 
     pub async fn get_action_required_notifications(&self) -> DomainResult<Vec<Notification>> {
