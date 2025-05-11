@@ -78,9 +78,10 @@ impl Notification {
     }
 
     pub fn mark_as_read(&mut self) {
+        let now = Utc::now();
         self.status = NotificationStatus::Read;
-        self.read_at = Some(Utc::now());
-        self.updated_at = Utc::now();
+        self.read_at = Some(now);
+        self.updated_at = now;
     }
 
     pub fn archive(&mut self) {
