@@ -56,9 +56,20 @@ impl SqliteRepository<Notification> for SqliteNotificationRepository {
 
     fn column_names(&self) -> Vec<&str> {
         vec![
-            "id", "title", "content", "priority", "status", "source",
-            "external_id", "url", "tags", "custom_data", "created_at",
-            "updated_at", "read_at", "action_taken_at"
+            "id",
+            "title",
+            "content",
+            "priority",
+            "status",
+            "source",
+            "external_id",
+            "url",
+            "tags",
+            "custom_data",
+            "created_at",
+            "updated_at",
+            "read_at",
+            "action_taken_at",
         ]
     }
 

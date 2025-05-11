@@ -4,34 +4,18 @@ pub mod repositories;
 pub mod services;
 
 pub use entities::{
-    NotificationPriority,
-    NotificationStatus,
-    NotificationSource,
-    NotificationMetadata,
-    Notification,
-    ServiceType,
-    AuthType,
-    AuthConfig,
-    ServiceEndpoints,
-    ServiceConfig,
-    OAuth2Config,
-    BasicAuthConfig,
-    ApiKeyConfig,
-    CustomAuthConfig,
+    ApiKeyConfig, AuthConfig, AuthType, BasicAuthConfig, CustomAuthConfig, Notification,
+    NotificationMetadata, NotificationPriority, NotificationSource, NotificationStatus,
+    OAuth2Config, ServiceConfig, ServiceEndpoints, ServiceType,
 };
 
 pub use error::{DomainError, DomainResult};
 
 pub use repositories::{
-    NotificationRepository,
+    DynNotificationRepository, DynServiceConfigRepository, NotificationRepository,
     ServiceConfigRepository,
-    DynNotificationRepository,
-    DynServiceConfigRepository,
 };
 
 pub use services::{
-    NotificationService,
-    ServiceConfigService,
-    DynNotificationService,
-    DynServiceConfigService,
+    DynNotificationService, DynServiceConfigService, NotificationService, ServiceConfigService,
 };

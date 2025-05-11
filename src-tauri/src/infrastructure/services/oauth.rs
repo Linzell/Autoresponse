@@ -31,6 +31,12 @@ pub struct DefaultOAuthService {
     http_client: reqwest::Client,
 }
 
+impl Default for DefaultOAuthService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DefaultOAuthService {
     pub fn new() -> Self {
         Self {
