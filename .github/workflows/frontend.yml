@@ -10,15 +10,20 @@ on:
       - "*"
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_call:
+    secrets:
+      SONAR_TOKEN:
+        required: false
 
 env:
-  NODE_VERSION: '20'
-  PNPM_VERSION: '8'
+  NODE_VERSION: "20"
+  PNPM_VERSION: "8"
 
 jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_call' || inputs.run_security
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +45,7 @@ jobs:
   deps:
     name: Dependencies Check
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_call' || inputs.run_deps
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -61,6 +67,7 @@ jobs:
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_call' || inputs.run_lint
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +94,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    if: always()
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -115,6 +123,7 @@ jobs:
   accessibility:
     name: Accessibility Check
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_call' || inputs.run_accessibility
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
