@@ -1,0 +1,17 @@
+// Integration tests module
+
+#[cfg(test)]
+mod notification_test;
+
+#[cfg(test)]
+mod service_config_test;
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_module_loading() {
+        // This test ensures the test modules are correctly loaded
+        // It will fail if there are any module loading issues
+    }
+}
