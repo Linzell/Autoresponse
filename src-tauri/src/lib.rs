@@ -4,9 +4,12 @@ pub mod infrastructure;
 pub mod presentation;
 
 use application::{NotificationUseCases, ServiceConfigUseCases};
-use domain::services::{
-    DefaultNotificationService, DefaultServiceConfigService, NotificationService,
-    ServiceConfigService,
+use domain::{
+    services::{
+        DefaultNotificationService, DefaultServiceConfigService, NotificationService,
+        ServiceConfigService,
+    },
+    NotificationRepository, ServiceConfigRepository,
 };
 use infrastructure::repositories::{SqliteNotificationRepository, SqliteServiceConfigRepository};
 use presentation::{
@@ -231,14 +234,14 @@ pub fn run() {
 
     // Initialize repositories
     let service_config_repository = Arc::new(
-        SqliteServiceConfigRepository::new(&db_path)
+        SqliteServiceConfigRepository::new(db_path.clone())
             .expect("Failed to create service config repository"),
-    );
+    ) as Arc<dyn ServiceConfigRepository>;
 
     let notification_repository = Arc::new(
-        SqliteNotificationRepository::new(&db_path)
+        SqliteNotificationRepository::new(db_path)
             .expect("Failed to create notification repository"),
-    );
+    ) as Arc<dyn NotificationRepository>;
 
     // Initialize services
     let service_config_service = Arc::new(DefaultServiceConfigService::new(
