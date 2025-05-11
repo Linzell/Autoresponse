@@ -19,8 +19,19 @@ env:
   NODE_VERSION: '20'
 
 jobs:
+  tests:
+    name: Run Tests
+    uses: ./.github/workflows/frontend.yml
+    secrets: inherit
+
+  rust-tests:
+    name: Run Rust Tests
+    uses: ./.github/workflows/rust-tauri.yml
+    secrets: inherit
+
   analyze:
     name: Code Analysis
+    needs: [tests, rust-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -41,12 +52,14 @@ jobs:
 
       - name: Download frontend coverage
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: frontend-coverage
           path: coverage/
 
       - name: Download Rust coverage
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: rust-coverage
           path: coverage/rust/
@@ -65,7 +78,7 @@ jobs:
 
   build:
     name: Build
-    needs: [analyze]
+    needs: [analyze, tests, rust-tests]
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 60
     strategy:
@@ -105,7 +118,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Build
         uses: tauri-apps/tauri-action@v0

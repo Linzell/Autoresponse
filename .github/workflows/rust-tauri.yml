@@ -10,6 +10,10 @@ on:
       - "*"
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_call:
+    secrets:
+      SONAR_TOKEN:
+        required: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +23,7 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_call' || inputs.run_security
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +41,7 @@ jobs:
   deps:
     name: Dependencies Check
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_call' || inputs.run_deps
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +58,7 @@ jobs:
   check:
     name: Code Quality
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_call' || inputs.run_check
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -64,7 +71,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -84,6 +91,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    if: always()
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
