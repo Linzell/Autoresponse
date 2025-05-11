@@ -9,6 +9,7 @@ use autoresponse_lib::{
         NotificationStatus,
     },
 };
+use mockall::predicate;
 use std::sync::Arc;
 use tokio;
 use uuid::Uuid;
@@ -67,6 +68,46 @@ async fn test_notification_lifecycle() -> Result<()> {
 }
 
 #[tokio::test]
+async fn test_recent_notifications() -> Result<()> {
+    let mut mock = MockNotificationService::new();
+    let now = chrono::Utc::now();
+    let notifications = vec![
+        create_test_notification_with_time(
+            NotificationPriority::High,
+            NotificationSource::Email,
+            NotificationStatus::New,
+            now,
+        ),
+        create_test_notification_with_time(
+            NotificationPriority::Medium,
+            NotificationSource::Github,
+            NotificationStatus::Read,
+            now - chrono::Duration::hours(1),
+        ),
+        create_test_notification_with_time(
+            NotificationPriority::Low,
+            NotificationSource::Jira,
+            NotificationStatus::New,
+            now - chrono::Duration::hours(2),
+        ),
+    ];
+
+    mock.expect_get_all_notifications()
+        .times(1)
+        .returning(move || Ok(notifications.clone()));
+
+    let use_cases = NotificationUseCases::new(Arc::new(mock));
+    let recent = use_cases.get_recent_notifications(2).await?;
+
+    assert_eq!(recent.len(), 2);
+    assert!(recent[0].created_at > recent[1].created_at);
+    assert_eq!(recent[0].priority, NotificationPriority::High);
+    assert_eq!(recent[1].priority, NotificationPriority::Medium);
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_notification_filtering() -> Result<()> {
     let mut mock = MockNotificationService::new();
 
@@ -88,9 +129,41 @@ async fn test_notification_filtering() -> Result<()> {
         ),
     ];
 
-    mock.expect_get_all_notifications()
-        .times(3)
-        .returning(move || Ok(base_notifications.clone()));
+    let email_notifications = base_notifications.clone();
+    mock.expect_get_notifications_by_source()
+        .with(predicate::eq(NotificationSource::Email))
+        .times(1)
+        .returning(move |_| {
+            Ok(email_notifications
+                .clone()
+                .into_iter()
+                .filter(|n| matches!(n.metadata.source, NotificationSource::Email))
+                .collect())
+        });
+
+    let action_required_notifications = base_notifications.clone();
+    mock.expect_get_notifications_by_status()
+        .with(predicate::eq(NotificationStatus::ActionRequired))
+        .times(1)
+        .returning(move |_| {
+            Ok(action_required_notifications
+                .clone()
+                .into_iter()
+                .filter(|n| matches!(n.status, NotificationStatus::ActionRequired))
+                .collect())
+        });
+
+    let new_notifications = base_notifications.clone();
+    mock.expect_get_notifications_by_status()
+        .with(predicate::eq(NotificationStatus::New))
+        .times(1)
+        .returning(move |_| {
+            Ok(new_notifications
+                .clone()
+                .into_iter()
+                .filter(|n| matches!(n.status, NotificationStatus::New))
+                .collect())
+        });
 
     let use_cases = NotificationUseCases::new(Arc::new(mock));
 
@@ -144,5 +217,17 @@ fn create_test_notification(
         NotificationStatus::New => {}
     }
 
+    notification
+}
+
+fn create_test_notification_with_time(
+    priority: NotificationPriority,
+    source: NotificationSource,
+    status: NotificationStatus,
+    created_at: chrono::DateTime<chrono::Utc>,
+) -> Notification {
+    let mut notification = create_test_notification(priority, source, status);
+    notification.created_at = created_at;
+    notification.updated_at = created_at;
     notification
 }

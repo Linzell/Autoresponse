@@ -1,7 +1,7 @@
 use autoresponse_lib::domain::{
     entities::{
         AuthConfig, AuthType, Notification, NotificationMetadata, NotificationPriority,
-        NotificationStatus, ServiceConfig, ServiceEndpoints, ServiceType,
+        NotificationSource, NotificationStatus, ServiceConfig, ServiceEndpoints, ServiceType,
     },
     error::DomainResult,
     services::{NotificationService, ServiceConfigService},
@@ -23,6 +23,7 @@ mockall::mock! {
         async fn get_notification(&self, id: Uuid) -> DomainResult<Notification>;
         async fn get_all_notifications(&self) -> DomainResult<Vec<Notification>>;
         async fn get_notifications_by_status(&self, status: NotificationStatus) -> DomainResult<Vec<Notification>>;
+        async fn get_notifications_by_source(&self, source: NotificationSource) -> DomainResult<Vec<Notification>>;
         async fn mark_as_read(&self, id: Uuid) -> DomainResult<()>;
         async fn mark_action_required(&self, id: Uuid) -> DomainResult<()>;
         async fn mark_action_taken(&self, id: Uuid) -> DomainResult<()>;
