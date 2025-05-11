@@ -122,8 +122,9 @@ impl ServiceConfig {
     }
 
     pub fn update_last_sync(&mut self) {
-        self.last_sync = Some(Utc::now());
-        self.updated_at = Utc::now();
+        let now = Utc::now();
+        self.last_sync = Some(now);
+        self.updated_at = now;
     }
 
     pub fn update_metadata(&mut self, metadata: serde_json::Value) {
