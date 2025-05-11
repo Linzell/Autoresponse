@@ -5,7 +5,27 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: 'github-actions'
+    directory: '/' # Location of package manifests
     schedule:
-      interval: "weekly"
+      interval: 'weekly' # Check for updates every week
+    target-branch: 'dev' # Branch to create pull requests against
+    assignees: # Assign the PR to someone
+      - 'dependabot[bot]'
+    reviewers: # Add reviewers
+      - 'Linzell'
+    commit-message:
+      # Prefix all commit messages with "deps(GA): "
+      prefix: 'deps(GA)'
+  - package-ecosystem: 'npm' # See documentation for possible values
+    directory: '/' # Location of package manifests
+    schedule:
+      interval: 'weekly' # Check for updates every week
+    target-branch: 'dev' # Branch to create pull requests against
+    assignees: # Assign the PR to someone
+      - 'dependabot[bot]'
+    reviewers: # Add reviewers
+      - 'Linzell'
+    commit-message:
+      # Prefix all commit messages with "deps(npm): "
+      prefix: 'deps(npm)'
