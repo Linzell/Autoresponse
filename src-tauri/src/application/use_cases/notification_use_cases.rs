@@ -6,7 +6,50 @@ use crate::domain::{
     error::DomainResult,
     services::DynNotificationService,
 };
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateNotificationRequest {
+    pub title: String,
+    pub content: String,
+    pub priority: NotificationPriority,
+    pub source: NotificationSource,
+    pub external_id: Option<String>,
+    pub url: Option<String>,
+    pub tags: Vec<String>,
+    pub custom_data: Option<Value>,
+}
+
+impl CreateNotificationRequest {
+    pub fn new(title: String, content: String) -> Self {
+        Self {
+            title,
+            content,
+            priority: NotificationPriority::Medium,
+            source: NotificationSource::Custom("system".to_string()),
+            external_id: None,
+            url: None,
+            tags: Vec::new(),
+            custom_data: None,
+        }
+    }
+
+    pub fn into_notification_parts(
+        self,
+    ) -> (String, String, NotificationPriority, NotificationMetadata) {
+        let metadata = NotificationMetadata {
+            source: self.source,
+            external_id: self.external_id,
+            url: self.url,
+            tags: self.tags,
+            custom_data: self.custom_data,
+        };
+
+        (self.title, self.content, self.priority, metadata)
+    }
+}
 
 pub struct NotificationUseCases {
     notification_service: DynNotificationService,
@@ -21,22 +64,9 @@ impl NotificationUseCases {
 
     pub async fn create_notification(
         &self,
-        title: String,
-        content: String,
-        priority: NotificationPriority,
-        source: NotificationSource,
-        external_id: Option<String>,
-        url: Option<String>,
-        tags: Vec<String>,
-        custom_data: Option<serde_json::Value>,
+        request: CreateNotificationRequest,
     ) -> DomainResult<Notification> {
-        let metadata = NotificationMetadata {
-            source,
-            external_id,
-            url,
-            tags,
-            custom_data,
-        };
+        let (title, content, priority, metadata) = request.into_notification_parts();
 
         self.notification_service
             .create_notification(title, content, priority, metadata)
@@ -162,18 +192,18 @@ mod tests {
 
         let use_cases = NotificationUseCases::new(std::sync::Arc::new(mock_service));
 
-        let result = use_cases
-            .create_notification(
-                "Test Title".to_string(),
-                "Test Content".to_string(),
-                NotificationPriority::Medium,
-                NotificationSource::Email,
-                Some("test123".to_string()),
-                None,
-                vec!["test".to_string()],
-                None,
-            )
-            .await;
+        let request = CreateNotificationRequest {
+            title: "Test Title".to_string(),
+            content: "Test Content".to_string(),
+            priority: NotificationPriority::Medium,
+            source: NotificationSource::Email,
+            external_id: Some("test123".to_string()),
+            url: None,
+            tags: vec!["test".to_string()],
+            custom_data: None,
+        };
+
+        let result = use_cases.create_notification(request).await;
 
         assert!(result.is_ok());
         let notification = result.unwrap();

@@ -37,8 +37,7 @@ where
         let params = self.map_entity_to_params(entity);
         let columns = self.column_names();
 
-        let param_placeholders = std::iter::repeat("?")
-            .take(columns.len())
+        let param_placeholders = std::iter::repeat_n("?", columns.len())
             .collect::<Vec<_>>()
             .join(", ");
 
