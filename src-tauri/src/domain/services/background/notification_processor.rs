@@ -130,7 +130,7 @@ impl NotificationProcessor {
             .find_by_id(id)
             .await
             .map_err(|e| ProcessorError::Repository(e.to_string()))?
-            .ok_or_else(|| ProcessorError::NotFound(id))
+            .ok_or(ProcessorError::NotFound(id))
     }
 
     async fn generate_response(&self, notification_id: Uuid) -> Result<(), ProcessorError> {
