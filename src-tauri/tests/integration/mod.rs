@@ -1,6 +1,9 @@
 // Integration tests module
 
 #[cfg(test)]
+mod action_test;
+
+#[cfg(test)]
 mod event_test;
 
 #[cfg(test)]

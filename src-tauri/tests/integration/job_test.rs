@@ -32,12 +32,17 @@ impl JobHandler for TestJobHandler {
             }
         };
 
-        // Store that we attempted to process this job
-        if let Err(e) = self.executed_jobs.try_lock().map(|mut jobs| jobs.push(job_data.clone())) {
-            let msg = format!("Failed to track job execution: {}", e);
-            job.fail(msg.clone());
-            return Err(msg);
+        // If delay is specified, simulate processing time
+        if let Some(delay) = job_data.delay {
+            std::thread::sleep(delay);
         }
+
+        // Store that we attempted to process this job
+        let mut executed_jobs = self
+            .executed_jobs
+            .try_lock()
+            .map_err(|e| format!("Failed to lock executed_jobs: {}", e))?;
+        executed_jobs.push(job_data.clone());
 
         // Check for failure conditions
         if matches!(job.status, JobStatus::Cancelled) {
@@ -58,7 +63,8 @@ impl JobHandler for TestJobHandler {
             return Err(msg);
         }
 
-        // If we get here, the job should succeed
+        // Mark job as completed
+        job.complete();
         Ok(())
     }
 
@@ -81,11 +87,11 @@ async fn test_parallel_job_processing() -> DomainResult<()> {
     let job_count = 5;
     let mut job_ids = Vec::new();
 
-    for _i in 0..job_count {
+    for i in 0..job_count {
         let test_job = TestJob {
             id: Uuid::new_v4(),
             success: true,
-            delay: Some(Duration::from_millis(10)), // Reduce delay for faster processing
+            delay: Some(Duration::from_millis(5 * (i + 1) as u64)), // Staggered delays
             should_panic: false,
         };
 
@@ -103,7 +109,7 @@ async fn test_parallel_job_processing() -> DomainResult<()> {
     // Wait for all jobs to complete
     let mut remaining_jobs: std::collections::HashSet<_> = job_ids.iter().cloned().collect();
     let start = std::time::Instant::now();
-    let timeout = Duration::from_secs(10); // Increase timeout for parallel processing
+    let timeout = Duration::from_secs(2); // Shorter timeout since we have faster processing
 
     while !remaining_jobs.is_empty() {
         if start.elapsed() > timeout {
@@ -218,11 +224,11 @@ async fn test_job_error_handling_and_retries() -> DomainResult<()> {
     let job_id = manager.submit_job(job).await?;
 
     // Wait for job to fail
-    let mut retries = 50;  // 5 seconds total with 100ms interval
+    let mut retries = 50; // 5 seconds total with 100ms interval
     while retries > 0 {
         match manager.get_job_status(job_id).await {
             Some(JobStatus::Failed) => break, // Success - job failed as expected
-            None => break, // Job completed and was removed
+            None => break,                    // Job completed and was removed
             Some(JobStatus::Completed) => panic!("Job completed when it should have failed"),
             _ => {
                 tokio::time::sleep(Duration::from_millis(100)).await;
@@ -319,7 +325,8 @@ async fn test_invalid_job_handling() -> DomainResult<()> {
 
     // Wait for job to fail with timeout
     let mut failed = false;
-    for i in 0..20 { // Try for 2 seconds
+    for i in 0..20 {
+        // Try for 2 seconds
         println!("Checking job status attempt {}", i);
         match manager.get_job_status(job_id).await {
             Some(JobStatus::Failed) => {
