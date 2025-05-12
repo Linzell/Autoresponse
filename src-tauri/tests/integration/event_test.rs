@@ -221,7 +221,9 @@ async fn test_concurrent_event_publishing() -> Result<(), DomainError> {
 
     // Wait for all tasks to complete
     for handle in handles {
-        handle.await.map_err(|e| DomainError::InternalError(e.to_string()))??;
+        handle
+            .await
+            .map_err(|e| DomainError::InternalError(e.to_string()))??;
     }
 
     let events = publisher.get_published_events().await;

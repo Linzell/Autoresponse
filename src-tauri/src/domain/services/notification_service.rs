@@ -3,8 +3,8 @@ use crate::domain::{
     error::{DomainError, DomainResult},
     repositories::DynNotificationRepository,
     services::{
-        background::{BackgroundJobManager, Job, JobPriority, JobType},
         actions::ActionExecutor,
+        background::{BackgroundJobManager, Job, JobPriority, JobType},
     },
     NotificationSource,
 };

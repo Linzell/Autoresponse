@@ -4,7 +4,10 @@ pub mod executor;
 pub use executor::ActionExecutor;
 
 pub trait ActionHandler: Send + Sync {
-    fn handle<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>>;
+    fn handle<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>>;
 }
 
 pub enum ActionType {

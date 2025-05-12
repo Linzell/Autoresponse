@@ -228,7 +228,9 @@ async fn test_notification_processing_workflow() -> Result<()> {
     // Verify notification processed event was published
     let events = event_publisher.get_events().await;
     assert!(
-        events.iter().any(|e| matches!(e, NotificationEvent::NotificationActionRequired { .. })),
+        events
+            .iter()
+            .any(|e| matches!(e, NotificationEvent::NotificationActionRequired { .. })),
         "Expected notification action required event"
     );
 
@@ -299,7 +301,8 @@ async fn test_action_execution() -> Result<()> {
     assert_eq!(notification.status, NotificationStatus::ActionRequired);
 
     // Execute action
-    let mut execute_job = create_processor_job(notification.id, NotificationActionType::ExecuteAction);
+    let mut execute_job =
+        create_processor_job(notification.id, NotificationActionType::ExecuteAction);
     processor
         .handle(&mut execute_job)
         .expect("Failed to execute action");

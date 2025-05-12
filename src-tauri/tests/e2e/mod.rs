@@ -2,8 +2,8 @@ use std::sync::Once;
 use tracing_subscriber::{self, fmt::format::FmtSpan};
 
 // E2E test configuration
-pub mod setup;
 mod notification_actions;
+pub mod setup;
 
 use std::{env, fs};
 
@@ -55,6 +55,4 @@ mod tests {
             "Database URL does not match expected value"
         );
     }
-
-
 }
