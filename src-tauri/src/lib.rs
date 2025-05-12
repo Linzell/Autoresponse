@@ -6,8 +6,8 @@ pub mod presentation;
 use application::{NotificationUseCases, ServiceConfigUseCases};
 use domain::{
     services::{
-        DefaultNotificationService, DefaultServiceConfigService, NotificationService,
-        ServiceConfigService,
+        background::BackgroundJobManager, DefaultNotificationService, DefaultServiceConfigService,
+        NotificationService, ServiceConfigService,
     },
     NotificationRepository, ServiceConfigRepository,
 };
@@ -243,6 +243,9 @@ pub fn run() {
             .expect("Failed to create notification repository"),
     ) as Arc<dyn NotificationRepository>;
 
+    // Initialize background job manager
+    let job_manager = Arc::new(BackgroundJobManager::new());
+
     // Initialize services
     let service_config_service = Arc::new(DefaultServiceConfigService::new(
         service_config_repository.clone(),
@@ -250,6 +253,7 @@ pub fn run() {
 
     let notification_service = Arc::new(DefaultNotificationService::new(
         notification_repository.clone(),
+        job_manager.clone(),
     )) as Arc<dyn NotificationService>;
 
     // Initialize use cases

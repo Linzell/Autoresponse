@@ -1,5 +1,11 @@
+pub mod background;
 pub mod notification_service;
 pub mod service_config_service;
+
+pub use background::{
+    BackgroundJobManager, Job, JobHandler, JobPriority, JobStatus, JobType, NotificationActionType,
+    NotificationProcessor,
+};
 
 pub use notification_service::{
     DefaultNotificationService, DynNotificationService, NotificationService,

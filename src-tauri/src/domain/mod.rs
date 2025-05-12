@@ -1,5 +1,6 @@
 pub mod entities;
 pub mod error;
+pub mod events;
 pub mod repositories;
 pub mod services;
 
@@ -10,6 +11,8 @@ pub use entities::{
 };
 
 pub use error::{DomainError, DomainResult};
+
+pub use events::{DynEventPublisher, EventPublisher, NotificationEvent};
 
 pub use repositories::{
     DynNotificationRepository, DynServiceConfigRepository, NotificationRepository,
