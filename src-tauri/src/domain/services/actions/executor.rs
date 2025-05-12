@@ -18,7 +18,10 @@ impl ActionExecutor {
         Self
     }
 
-    pub fn execute<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    pub fn execute<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
             tracing::info!(
                 "Executing action for notification {} of type {:?}",
@@ -41,89 +44,114 @@ impl ActionExecutor {
         })
     }
 
-    fn handle_email<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_email<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        if let Some(data) = &notification.metadata.custom_data {
-            match serde_json::from_value::<EmailActionData>(data.clone()) {
-                Ok(email_data) => {
-                    tracing::info!(
-                        "Processing email action with thread ID: {}",
-                        email_data.thread_id
-                    );
-                }
-                Err(e) => {
-                    tracing::error!(
-                        "Failed to deserialize EmailActionData: {}. Data: {:?}",
-                        e,
-                        data
-                    );
+            if let Some(data) = &notification.metadata.custom_data {
+                match serde_json::from_value::<EmailActionData>(data.clone()) {
+                    Ok(email_data) => {
+                        tracing::info!(
+                            "Processing email action with thread ID: {}",
+                            email_data.thread_id
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "Failed to deserialize EmailActionData: {}. Data: {:?}",
+                            e,
+                            data
+                        );
+                    }
                 }
             }
-        }
             Ok(())
         })
     }
 
-    fn handle_github<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_github<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        if let Some(url) = &notification.metadata.url {
-            tracing::info!("Processing GitHub action for URL: {}", url);
-        }
+            if let Some(url) = &notification.metadata.url {
+                tracing::info!("Processing GitHub action for URL: {}", url);
+            }
             Ok(())
         })
     }
 
-    fn handle_gitlab<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_gitlab<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        if let Some(url) = &notification.metadata.url {
-            tracing::info!("Processing GitLab action for URL: {}", url);
-        }
+            if let Some(url) = &notification.metadata.url {
+                tracing::info!("Processing GitLab action for URL: {}", url);
+            }
             Ok(())
         })
     }
 
-    fn handle_jira<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_jira<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        if let Some(external_id) = &notification.metadata.external_id {
-            tracing::info!("Processing Jira action for ticket: {}", external_id);
-        }
+            if let Some(external_id) = &notification.metadata.external_id {
+                tracing::info!("Processing Jira action for ticket: {}", external_id);
+            }
             Ok(())
         })
     }
 
-    fn handle_microsoft<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_microsoft<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        if let Some(_data) = &notification.metadata.custom_data {
-            tracing::info!("Processing Microsoft action with custom data");
-        }
+            if let Some(_data) = &notification.metadata.custom_data {
+                tracing::info!("Processing Microsoft action with custom data");
+            }
             Ok(())
         })
     }
 
-    fn handle_google<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_google<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        if let Some(_data) = &notification.metadata.custom_data {
-            tracing::info!("Processing Google action with custom data");
-        }
+            if let Some(_data) = &notification.metadata.custom_data {
+                tracing::info!("Processing Google action with custom data");
+            }
             Ok(())
         })
     }
 
-    fn handle_linkedin<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_linkedin<'a>(
+        &'a self,
+        notification: &'a Notification,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        if let Some(url) = &notification.metadata.url {
-            tracing::info!("Processing LinkedIn action for URL: {}", url);
-        }
+            if let Some(url) = &notification.metadata.url {
+                tracing::info!("Processing LinkedIn action for URL: {}", url);
+            }
             Ok(())
         })
     }
 
-    fn handle_custom<'a>(&'a self, notification: &'a Notification, service: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
+    fn handle_custom<'a>(
+        &'a self,
+        notification: &'a Notification,
+        service: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
-        tracing::info!("Processing custom action for service: {}", service);
-        if let Some(_data) = &notification.metadata.custom_data {
-            // Handle custom service integration based on service name and data
-        }
+            tracing::info!("Processing custom action for service: {}", service);
+            if let Some(_data) = &notification.metadata.custom_data {
+                // Handle custom service integration based on service name and data
+            }
             Ok(())
         })
     }

@@ -33,7 +33,7 @@ async fn setup_test_service() -> Arc<dyn NotificationService> {
 
     let notification_repo = SqliteNotificationRepository::new(":memory:").unwrap();
     let job_manager = Arc::new(BackgroundJobManager::new());
-    
+
     // Register notification processing handler
     job_manager
         .register_handler(Arc::new(TestJobHandler))

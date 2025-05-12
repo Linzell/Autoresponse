@@ -225,7 +225,7 @@ impl JobHandler for NotificationProcessor {
         let notification_id = payload.notification_id;
         let action_type = payload.action_type;
         let processor = self.clone();
-        
+
         futures::executor::block_on(async move {
             let result = match action_type {
                 NotificationActionType::Process => {
@@ -465,7 +465,11 @@ mod tests {
             processor.handle(&mut job).unwrap();
 
             // Verify notification was processed
-            let processed = repository.find_by_id(notification.id).await.unwrap().unwrap();
+            let processed = repository
+                .find_by_id(notification.id)
+                .await
+                .unwrap()
+                .unwrap();
             assert_eq!(processed.status, NotificationStatus::ActionRequired);
         });
     }
@@ -496,7 +500,11 @@ mod tests {
             processor.handle(&mut job).unwrap();
 
             // Verify response was generated
-            let processed = repository.find_by_id(notification.id).await.unwrap().unwrap();
+            let processed = repository
+                .find_by_id(notification.id)
+                .await
+                .unwrap()
+                .unwrap();
             let response = processed.metadata.custom_data.unwrap();
             assert_eq!(response["generated_response"], TEST_RESPONSE);
         });
@@ -528,7 +536,11 @@ mod tests {
             processor.handle(&mut job).unwrap();
 
             // Verify action was executed
-            let processed = repository.find_by_id(notification.id).await.unwrap().unwrap();
+            let processed = repository
+                .find_by_id(notification.id)
+                .await
+                .unwrap()
+                .unwrap();
             assert_eq!(processed.status, NotificationStatus::ActionTaken);
         });
     }
