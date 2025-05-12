@@ -1,7 +1,16 @@
 // Integration tests module
 
 #[cfg(test)]
+mod event_test;
+
+#[cfg(test)]
+mod job_test;
+
+#[cfg(test)]
 mod notification_test;
+
+#[cfg(test)]
+mod processor_test;
 
 #[cfg(test)]
 mod service_config_test;
