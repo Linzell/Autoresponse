@@ -44,11 +44,20 @@ impl ActionExecutor {
     fn handle_email<'a>(&'a self, notification: &'a Notification) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
         Box::pin(async move {
         if let Some(data) = &notification.metadata.custom_data {
-            if let Ok(email_data) = serde_json::from_value::<EmailActionData>(data.clone()) {
-                tracing::info!(
-                    "Processing email action with thread ID: {}",
-                    email_data.thread_id
-                );
+            match serde_json::from_value::<EmailActionData>(data.clone()) {
+                Ok(email_data) => {
+                    tracing::info!(
+                        "Processing email action with thread ID: {}",
+                        email_data.thread_id
+                    );
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "Failed to deserialize EmailActionData: {}. Data: {:?}",
+                        e,
+                        data
+                    );
+                }
             }
         }
             Ok(())
