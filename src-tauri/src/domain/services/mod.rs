@@ -1,3 +1,4 @@
+pub mod actions;
 pub mod background;
 pub mod notification_service;
 pub mod service_config_service;

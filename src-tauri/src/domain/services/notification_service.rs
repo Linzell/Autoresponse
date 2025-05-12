@@ -2,7 +2,10 @@ use crate::domain::{
     entities::{Notification, NotificationMetadata, NotificationPriority, NotificationStatus},
     error::{DomainError, DomainResult},
     repositories::DynNotificationRepository,
-    services::background::{BackgroundJobManager, Job, JobPriority, JobType},
+    services::{
+        background::{BackgroundJobManager, Job, JobPriority, JobType},
+        actions::ActionExecutor,
+    },
     NotificationSource,
 };
 use async_trait::async_trait;
@@ -49,6 +52,7 @@ pub trait NotificationService: Send + Sync {
 pub struct DefaultNotificationService {
     repository: DynNotificationRepository,
     job_manager: Arc<BackgroundJobManager>,
+    action_executor: ActionExecutor,
 }
 
 impl DefaultNotificationService {
@@ -59,6 +63,7 @@ impl DefaultNotificationService {
         Self {
             repository,
             job_manager,
+            action_executor: ActionExecutor::new(),
         }
     }
 }
@@ -208,14 +213,7 @@ impl NotificationService for DefaultNotificationService {
     }
 
     async fn execute_action(&self, notification: &Notification) -> DomainResult<()> {
-        // TODO: Implement proper action execution based on notification type
-        // For now, just log the action
-        tracing::info!(
-            "Executing action for notification {} of type {:?}",
-            notification.id,
-            notification.metadata.source
-        );
-        Ok(())
+        self.action_executor.execute(notification).await
     }
 }
 

@@ -68,6 +68,30 @@ pub fn create_test_service_config(
     }
 }
 
+use autoresponse_lib::domain::entities::{
+    Notification, NotificationMetadata, NotificationPriority, NotificationSource,
+};
+
+pub fn create_test_notification(
+    title: &str,
+    content: &str,
+    priority: NotificationPriority,
+    source: NotificationSource,
+) -> Notification {
+    Notification::new(
+        title.to_string(),
+        content.to_string(),
+        priority,
+        NotificationMetadata {
+            source,
+            external_id: Some("test-id".to_string()),
+            url: Some("http://test.com".to_string()),
+            tags: vec!["test".to_string()],
+            custom_data: None,
+        },
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
