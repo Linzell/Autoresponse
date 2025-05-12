@@ -34,7 +34,7 @@ impl JobHandler for TestJobHandler {
 
         // If delay is specified, simulate processing time
         if let Some(delay) = job_data.delay {
-            std::thread::sleep(delay);
+            tokio::time::sleep(delay).await;
         }
 
         // Store that we attempted to process this job
