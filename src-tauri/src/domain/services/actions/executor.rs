@@ -13,6 +13,12 @@ pub(crate) struct EmailActionData {
 #[derive(Debug)]
 pub struct ActionExecutor;
 
+impl Default for ActionExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ActionExecutor {
     pub fn new() -> Self {
         Self

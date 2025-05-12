@@ -11,6 +11,12 @@ pub struct BackgroundJobManager {
     active_jobs: Arc<RwLock<HashMap<uuid::Uuid, Arc<RwLock<Job>>>>>,
 }
 
+impl Default for BackgroundJobManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BackgroundJobManager {
     pub fn new() -> Self {
         Self {
