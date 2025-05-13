@@ -1,19 +1,19 @@
-use std::sync::Arc;
-use std::time::Duration;
 use crate::domain::{
     entities::{Notification, NotificationMetadata, NotificationSource, NotificationStatus},
     error::DomainError,
     repositories::NotificationRepository,
 };
 use crate::infrastructure::repositories::{
-    sqlite_base::SqliteRepository,
     cached_repository::{CachedRepository, Repository},
+    sqlite_base::SqliteRepository,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, Row};
 use serde_json::Value;
 use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -308,8 +308,8 @@ impl NotificationRepository for SqliteNotificationRepository {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use crate::domain::NotificationPriority;
+    use std::time::Duration;
 
     use super::*;
 
@@ -337,18 +337,14 @@ mod tests {
     #[tokio::test]
     async fn test_cached_repository() {
         let base_repo = SqliteNotificationRepository::new(":memory:").unwrap();
-        let repo = CachedSqliteNotificationRepository::new(
-            base_repo,
-            100,
-            Duration::from_secs(30),
-        );
+        let repo = CachedSqliteNotificationRepository::new(base_repo, 100, Duration::from_secs(30));
         let mut notification = create_test_notification().await;
 
         // Test save and cache invalidation
         NotificationRepository::save(&repo, &mut notification)
             .await
             .unwrap();
-        
+
         // Test find by id (should use cache)
         let found = NotificationRepository::find_by_id(&repo, notification.id)
             .await

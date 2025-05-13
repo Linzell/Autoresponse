@@ -3,6 +3,7 @@ use autoresponse_lib::domain::{
     error::DomainError,
     services::{BackgroundJobManager, Job, JobHandler, JobPriority, JobStatus, JobType},
 };
+use parking_lot::Mutex;
 use std::{sync::Arc, time::Duration};
 use tokio;
 use uuid::Uuid;
@@ -17,7 +18,7 @@ struct TestJob {
 
 #[derive(Debug)]
 struct TestJobHandler {
-    executed_jobs: Arc<tokio::sync::Mutex<Vec<TestJob>>>,
+    executed_jobs: Arc<Mutex<Vec<TestJob>>>,
 }
 
 impl JobHandler for TestJobHandler {
@@ -37,30 +38,28 @@ impl JobHandler for TestJobHandler {
             std::thread::sleep(delay);
         }
 
-        // Store that we attempted to process this job
-        let mut executed_jobs = self
-            .executed_jobs
-            .try_lock()
-            .map_err(|e| format!("Failed to lock executed_jobs: {}", e))?;
-        executed_jobs.push(job_data.clone());
+        // First check if we should fail
+        let should_fail = matches!(job.status, JobStatus::Cancelled)
+            || job_data.should_panic
+            || !job_data.success;
 
-        // Check for failure conditions
-        if matches!(job.status, JobStatus::Cancelled) {
-            let msg = "Job cancelled".to_string();
-            job.fail(msg.clone());
-            return Err(msg);
+        // Record the attempt before we potentially fail
+        {
+            let mut executed_jobs = self.executed_jobs.lock();
+            executed_jobs.push(job_data.clone());
         }
 
-        if job_data.should_panic {
-            let msg = "Job panicked as requested".to_string();
-            job.fail(msg.clone());
-            return Err(msg);
-        }
-
-        if !job_data.success {
-            let msg = "Job failed as requested".to_string();
-            job.fail(msg.clone());
-            return Err(msg);
+        // Now handle failure conditions
+        if should_fail {
+            let msg = if matches!(job.status, JobStatus::Cancelled) {
+                "Job cancelled"
+            } else if job_data.should_panic {
+                "Job panicked as requested"
+            } else {
+                "Job failed as requested"
+            };
+            job.fail(msg.to_string());
+            return Err(msg.to_string());
         }
 
         // Mark job as completed
@@ -76,7 +75,7 @@ impl JobHandler for TestJobHandler {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_parallel_job_processing() -> DomainResult<()> {
     let manager = BackgroundJobManager::new();
-    let executed_jobs = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let executed_jobs = Arc::new(Mutex::new(Vec::new()));
     let handler = Arc::new(TestJobHandler {
         executed_jobs: executed_jobs.clone(),
     });
@@ -106,35 +105,51 @@ async fn test_parallel_job_processing() -> DomainResult<()> {
         job_ids.push(job_id);
     }
 
-    // Wait for all jobs to complete with a fixed number of attempts
-    let mut attempts = 10;
-    let mut completed_count = 0;
+    // Wait for all jobs to complete, with exponential backoff
+    let mut backoff = Duration::from_millis(1);
+    let max_backoff = Duration::from_millis(50);
+    let start = std::time::Instant::now();
+    let timeout = Duration::from_secs(1);
 
-    while attempts > 0 && completed_count < job_count {
-        completed_count = 0;
+    loop {
+        let mut completed = Vec::new();
+        let mut any_failed = false;
+
+        // Check all remaining jobs
         for job_id in &job_ids {
             match manager.get_job_status(*job_id).await {
                 Some(JobStatus::Completed) | None => {
-                    completed_count += 1;
+                    completed.push(*job_id);
                 }
                 Some(JobStatus::Failed) => {
-                    panic!("Job {} failed unexpectedly", job_id);
+                    any_failed = true;
+                    break;
                 }
                 _ => {}
             }
         }
-        if completed_count < job_count {
-            tokio::time::sleep(Duration::from_millis(2)).await;
-            attempts -= 1;
-        }
-    }
 
-    if completed_count < job_count {
-        panic!("Not all jobs completed within the time limit");
+        // Remove completed jobs
+        job_ids.retain(|id| !completed.contains(id));
+
+        // Check completion conditions
+        if any_failed {
+            panic!("One or more jobs failed unexpectedly");
+        }
+        if job_ids.is_empty() {
+            break;
+        }
+        if start.elapsed() > timeout {
+            panic!("Jobs did not complete within timeout");
+        }
+
+        // Exponential backoff
+        tokio::time::sleep(backoff).await;
+        backoff = std::cmp::min(backoff * 2, max_backoff);
     }
 
     // Verify all jobs were executed
-    let executed = executed_jobs.lock().await;
+    let executed = executed_jobs.lock();
     assert_eq!(executed.len(), job_count, "Not all jobs were executed");
 
     Ok(())
@@ -143,7 +158,7 @@ async fn test_parallel_job_processing() -> DomainResult<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_job_cancellation() -> DomainResult<()> {
     let manager = BackgroundJobManager::new();
-    let executed_jobs = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let executed_jobs = Arc::new(Mutex::new(Vec::new()));
     let handler = Arc::new(TestJobHandler {
         executed_jobs: executed_jobs.clone(),
     });
@@ -186,7 +201,7 @@ async fn test_job_cancellation() -> DomainResult<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_job_error_handling_and_retries() -> DomainResult<()> {
     let manager = BackgroundJobManager::new();
-    let executed_jobs = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let executed_jobs = Arc::new(Mutex::new(Vec::new()));
     let handler = Arc::new(TestJobHandler {
         executed_jobs: executed_jobs.clone(),
     });
@@ -233,7 +248,7 @@ async fn test_job_error_handling_and_retries() -> DomainResult<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_job_priority_handling() -> DomainResult<()> {
     let manager = BackgroundJobManager::new();
-    let executed_jobs = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let executed_jobs = Arc::new(Mutex::new(Vec::new()));
     let handler = Arc::new(TestJobHandler {
         executed_jobs: executed_jobs.clone(),
     });
@@ -241,10 +256,7 @@ async fn test_job_priority_handling() -> DomainResult<()> {
     manager.register_handler(handler).await?;
 
     // Create jobs with different priorities
-    let jobs = vec![
-        (JobPriority::Low, "low"),
-        (JobPriority::High, "high"),
-    ];
+    let jobs = vec![(JobPriority::Low, "low"), (JobPriority::High, "high")];
 
     let mut job_ids = Vec::new();
     for (priority, _name) in jobs {
@@ -293,7 +305,7 @@ async fn test_job_priority_handling() -> DomainResult<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_invalid_job_handling() -> DomainResult<()> {
     let manager = BackgroundJobManager::new();
-    let executed_jobs = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let executed_jobs = Arc::new(Mutex::new(Vec::new()));
     let handler = Arc::new(TestJobHandler {
         executed_jobs: executed_jobs.clone(),
     });
@@ -330,7 +342,7 @@ async fn test_invalid_job_handling() -> DomainResult<()> {
             }
             None => {
                 println!("Job was removed, checking execution history");
-                let executed = executed_jobs.lock().await;
+                let executed = executed_jobs.lock();
                 println!("Found {} executed jobs", executed.len());
                 failed = true; // If job is gone, it must have failed
                 break;
@@ -347,7 +359,7 @@ async fn test_invalid_job_handling() -> DomainResult<()> {
         match manager.get_job_status(job_id).await {
             Some(status) => panic!("Job in unexpected final state: {:?}", status),
             None => {
-                let executed = executed_jobs.lock().await;
+                let executed = executed_jobs.lock();
                 if executed.is_empty() {
                     panic!("Job disappeared without execution");
                 }
@@ -365,7 +377,7 @@ async fn test_invalid_job_handling() -> DomainResult<()> {
 async fn test_handler_registration() -> DomainResult<()> {
     let manager = BackgroundJobManager::new();
     let handler = Arc::new(TestJobHandler {
-        executed_jobs: Arc::new(tokio::sync::Mutex::new(Vec::new())),
+        executed_jobs: Arc::new(Mutex::new(Vec::new())),
     });
 
     // First registration should succeed
