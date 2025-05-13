@@ -9,8 +9,8 @@ use autoresponse_lib::domain::{
 use uuid::Uuid;
 
 mockall::mock! {
-    #[derive(Clone)]
     pub NotificationService {}
+
     #[async_trait::async_trait]
     impl NotificationService for NotificationService {
         async fn create_notification(
@@ -29,6 +29,21 @@ mockall::mock! {
         async fn mark_action_taken(&self, id: Uuid) -> DomainResult<()>;
         async fn archive_notification(&self, id: Uuid) -> DomainResult<()>;
         async fn delete_notification(&self, id: Uuid) -> DomainResult<()>;
+        async fn analyze_notification_content(&self, notification: &Notification) -> DomainResult<bool>;
+        async fn generate_response(&self, notification: &Notification) -> DomainResult<String>;
+        async fn execute_action(&self, notification: &Notification) -> DomainResult<()>;
+    }
+}
+
+impl MockNotificationService {
+    pub fn new_with_defaults() -> Self {
+        let mut mock = Self::new();
+        mock.expect_analyze_notification_content()
+            .returning(|_| Ok(true));
+        mock.expect_generate_response()
+            .returning(|_| Ok("Test response".to_string()));
+        mock.expect_execute_action().returning(|_| Ok(()));
+        mock
     }
 }
 

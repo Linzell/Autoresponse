@@ -1,9 +1,11 @@
+use std::sync::Once;
+use tracing_subscriber::{self, fmt::format::FmtSpan};
+
 // E2E test configuration
+mod notification_actions;
 pub mod setup;
 
-use std::sync::Once;
 use std::{env, fs};
-use tracing_subscriber::{self, fmt::format::FmtSpan};
 
 static INIT: Once = Once::new();
 
