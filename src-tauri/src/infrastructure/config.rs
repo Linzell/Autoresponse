@@ -63,12 +63,7 @@ mod tests {
 
     #[test]
     fn test_custom_config() {
-        let config = CacheConfig::new(
-            500,
-            Duration::from_secs(60),
-            50,
-            Duration::from_secs(120),
-        );
+        let config = CacheConfig::new(500, Duration::from_secs(60), 50, Duration::from_secs(120));
         assert_eq!(config.notification_cache_capacity, 500);
         assert_eq!(config.notification_cache_ttl.as_secs(), 60);
         assert_eq!(config.service_config_cache_capacity, 50);

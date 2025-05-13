@@ -75,7 +75,7 @@ impl BackgroundJobManager {
             let job_read = job.read().await;
             (job_read.id, job_read.metadata.job_type.clone())
         };
-        
+
         let start_time = std::time::Instant::now();
 
         info!(
