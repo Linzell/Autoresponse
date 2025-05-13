@@ -34,17 +34,19 @@ impl CacheConfig {
     }
 
     pub fn with_notification_cache(capacity: u64, ttl: Duration) -> Self {
-        let mut config = Self::default();
-        config.notification_cache_capacity = capacity;
-        config.notification_cache_ttl = ttl;
-        config
+        Self {
+            notification_cache_capacity: capacity,
+            notification_cache_ttl: ttl,
+            ..Default::default()
+        }
     }
 
     pub fn with_service_config_cache(capacity: u64, ttl: Duration) -> Self {
-        let mut config = Self::default();
-        config.service_config_cache_capacity = capacity;
-        config.service_config_cache_ttl = ttl;
-        config
+        Self {
+            service_config_cache_capacity: capacity,
+            service_config_cache_ttl: ttl,
+            ..Default::default()
+        }
     }
 }
 
