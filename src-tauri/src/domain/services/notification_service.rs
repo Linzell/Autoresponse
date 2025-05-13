@@ -1,0 +1,504 @@
+use crate::domain::{
+    entities::{Notification, NotificationMetadata, NotificationPriority, NotificationStatus},
+    error::{DomainError, DomainResult},
+    repositories::DynNotificationRepository,
+    services::{
+        actions::ActionExecutor,
+        background::{BackgroundJobManager, Job, JobPriority, JobType},
+    },
+    NotificationSource,
+};
+use async_trait::async_trait;
+use serde_json::json;
+use std::sync::Arc;
+use uuid::Uuid;
+
+#[cfg(test)]
+use mockall::automock;
+
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait NotificationService: Send + Sync {
+    async fn create_notification(
+        &self,
+        title: String,
+        content: String,
+        priority: NotificationPriority,
+        metadata: NotificationMetadata,
+    ) -> DomainResult<Notification>;
+
+    async fn get_notification(&self, id: Uuid) -> DomainResult<Notification>;
+    async fn get_all_notifications(&self) -> DomainResult<Vec<Notification>>;
+    async fn get_notifications_by_status(
+        &self,
+        status: NotificationStatus,
+    ) -> DomainResult<Vec<Notification>>;
+    async fn get_notifications_by_source(
+        &self,
+        source: NotificationSource,
+    ) -> DomainResult<Vec<Notification>>;
+    async fn mark_as_read(&self, id: Uuid) -> DomainResult<()>;
+    async fn mark_action_required(&self, id: Uuid) -> DomainResult<()>;
+    async fn mark_action_taken(&self, id: Uuid) -> DomainResult<()>;
+    async fn archive_notification(&self, id: Uuid) -> DomainResult<()>;
+    async fn delete_notification(&self, id: Uuid) -> DomainResult<()>;
+
+    async fn analyze_notification_content(&self, notification: &Notification)
+        -> DomainResult<bool>;
+    async fn generate_response(&self, notification: &Notification) -> DomainResult<String>;
+    async fn execute_action(&self, notification: &Notification) -> DomainResult<()>;
+}
+
+pub struct DefaultNotificationService {
+    repository: DynNotificationRepository,
+    job_manager: Arc<BackgroundJobManager>,
+    action_executor: ActionExecutor,
+}
+
+impl DefaultNotificationService {
+    pub fn new(
+        repository: DynNotificationRepository,
+        job_manager: Arc<BackgroundJobManager>,
+    ) -> Self {
+        Self {
+            repository,
+            job_manager,
+            action_executor: ActionExecutor::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl NotificationService for DefaultNotificationService {
+    async fn create_notification(
+        &self,
+        title: String,
+        content: String,
+        priority: NotificationPriority,
+        metadata: NotificationMetadata,
+    ) -> DomainResult<Notification> {
+        let mut notification = Notification::new(title, content, priority, metadata);
+        self.repository.save(&mut notification).await?;
+
+        // Submit background job for processing
+        let job = Job::new(
+            json!({
+                "notification_id": notification.id,
+                "action_type": "Process"
+            }),
+            JobPriority::Normal,
+            JobType::NotificationProcessing,
+            3,
+        );
+
+        let _ = self
+            .job_manager
+            .submit_job(job)
+            .await
+            .map_err(|e| DomainError::InternalError(e.to_string()))?;
+        Ok(notification)
+    }
+
+    async fn get_notification(&self, id: Uuid) -> DomainResult<Notification> {
+        self.repository.find_by_id(id).await?.ok_or_else(|| {
+            DomainError::NotFoundError(format!("Notification with id {} not found", id))
+        })
+    }
+
+    async fn get_all_notifications(&self) -> DomainResult<Vec<Notification>> {
+        self.repository.find_all().await
+    }
+
+    async fn get_notifications_by_status(
+        &self,
+        status: NotificationStatus,
+    ) -> DomainResult<Vec<Notification>> {
+        self.repository.find_by_status(status).await
+    }
+
+    async fn get_notifications_by_source(
+        &self,
+        source: NotificationSource,
+    ) -> DomainResult<Vec<Notification>> {
+        self.repository.find_by_source(source).await
+    }
+
+    async fn mark_as_read(&self, id: Uuid) -> DomainResult<()> {
+        let mut notification = self.get_notification(id).await?;
+        notification.mark_as_read();
+        self.repository.save(&mut notification).await
+    }
+
+    async fn mark_action_required(&self, id: Uuid) -> DomainResult<()> {
+        let mut notification = self.get_notification(id).await?;
+        notification.mark_action_required();
+        self.repository.save(&mut notification).await?;
+
+        // Submit job for response generation
+        let job = Job::new(
+            json!({
+                "notification_id": id,
+                "action_type": "GenerateResponse"
+            }),
+            JobPriority::High,
+            JobType::NotificationProcessing,
+            3,
+        );
+
+        let _ = self
+            .job_manager
+            .submit_job(job)
+            .await
+            .map_err(|e| DomainError::InternalError(e.to_string()))?;
+        Ok(())
+    }
+
+    async fn mark_action_taken(&self, id: Uuid) -> DomainResult<()> {
+        let mut notification = self.get_notification(id).await?;
+        notification.mark_action_taken();
+        self.repository.save(&mut notification).await
+    }
+
+    async fn archive_notification(&self, id: Uuid) -> DomainResult<()> {
+        let mut notification = self.get_notification(id).await?;
+        notification.archive();
+        self.repository.save(&mut notification).await
+    }
+
+    async fn delete_notification(&self, id: Uuid) -> DomainResult<()> {
+        self.repository.delete(id).await
+    }
+
+    async fn analyze_notification_content(
+        &self,
+        notification: &Notification,
+    ) -> DomainResult<bool> {
+        // TODO: Implement proper content analysis with AI
+        // For now, just check if content contains certain keywords
+        let content = notification.content.to_lowercase();
+        let action_keywords = ["urgent", "action", "required", "deadline", "review"];
+
+        Ok(action_keywords
+            .iter()
+            .any(|&keyword| content.contains(keyword)))
+    }
+
+    async fn generate_response(&self, notification: &Notification) -> DomainResult<String> {
+        // TODO: Implement proper response generation with AI
+        // For now, return a simple templated response
+        let response = match notification.metadata.source {
+            NotificationSource::Email => {
+                "Thank you for your email. I will review and respond shortly."
+            }
+            NotificationSource::Github => {
+                "Thanks for the notification. I will check the GitHub issue/PR."
+            }
+            NotificationSource::Gitlab => {
+                "Thanks for the notification. I will review the GitLab item."
+            }
+            NotificationSource::Jira => "I will look into this Jira ticket soon.",
+            NotificationSource::Microsoft => {
+                "Thank you for the notification. I will check Microsoft Teams/Azure."
+            }
+            NotificationSource::Google => {
+                "Thanks for the notification. I will check Google Workspace."
+            }
+            NotificationSource::LinkedIn => "Thank you for reaching out on LinkedIn.",
+            NotificationSource::Custom(_) => {
+                "Thank you for the notification. I will review it shortly."
+            }
+        };
+
+        Ok(response.to_string())
+    }
+
+    async fn execute_action(&self, notification: &Notification) -> DomainResult<()> {
+        self.action_executor.execute(notification).await
+    }
+}
+
+pub type DynNotificationService = Arc<dyn NotificationService>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::entities::NotificationSource;
+    use crate::domain::events::NoopEventPublisher;
+    use crate::domain::repositories::NotificationRepository;
+    use crate::domain::services::background::NotificationProcessor;
+    use async_trait::async_trait;
+    use mockall::mock;
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    mock! {
+        Repository {}
+
+        #[async_trait]
+        impl NotificationRepository for Repository {
+            async fn save(&self, notification: &mut Notification) -> DomainResult<()>;
+            async fn find_by_id(&self, id: Uuid) -> DomainResult<Option<Notification>>;
+            async fn find_all(&self) -> DomainResult<Vec<Notification>>;
+            async fn find_by_status(&self, status: NotificationStatus) -> DomainResult<Vec<Notification>>;
+            async fn find_by_source(&self, source: NotificationSource) -> DomainResult<Vec<Notification>>;
+            async fn delete(&self, id: Uuid) -> DomainResult<()>;
+            async fn update_status(&self, id: Uuid, status: NotificationStatus) -> DomainResult<()>;
+        }
+    }
+
+    struct TestRepository {
+        notifications: Mutex<HashMap<Uuid, Notification>>,
+    }
+
+    #[async_trait]
+    impl NotificationRepository for TestRepository {
+        async fn save(&self, notification: &mut Notification) -> DomainResult<()> {
+            let mut notifications = self.notifications.lock().unwrap();
+            notifications.insert(notification.id, notification.clone());
+            Ok(())
+        }
+
+        async fn find_by_id(&self, id: Uuid) -> DomainResult<Option<Notification>> {
+            let notifications = self.notifications.lock().unwrap();
+            Ok(notifications.get(&id).cloned())
+        }
+
+        async fn find_all(&self) -> DomainResult<Vec<Notification>> {
+            let notifications = self.notifications.lock().unwrap();
+            Ok(notifications.values().cloned().collect())
+        }
+
+        async fn find_by_status(
+            &self,
+            status: NotificationStatus,
+        ) -> DomainResult<Vec<Notification>> {
+            let notifications = self.notifications.lock().unwrap();
+            Ok(notifications
+                .values()
+                .filter(|n| matches!(&n.status, s if *s == status))
+                .cloned()
+                .collect())
+        }
+
+        async fn find_by_source(
+            &self,
+            source: NotificationSource,
+        ) -> DomainResult<Vec<Notification>> {
+            let notifications = self.notifications.lock().unwrap();
+            Ok(notifications
+                .values()
+                .filter(|n| matches!(&n.metadata.source, s if *s == source))
+                .cloned()
+                .collect())
+        }
+
+        async fn delete(&self, id: Uuid) -> DomainResult<()> {
+            let mut notifications = self.notifications.lock().unwrap();
+            notifications.remove(&id);
+            Ok(())
+        }
+
+        async fn update_status(&self, id: Uuid, status: NotificationStatus) -> DomainResult<()> {
+            let mut notifications = self.notifications.lock().unwrap();
+            if let Some(notification) = notifications.get_mut(&id) {
+                notification.status = status;
+                notification.updated_at = chrono::Utc::now();
+                Ok(())
+            } else {
+                Err(DomainError::NotFoundError(format!(
+                    "Notification with id {} not found",
+                    id
+                )))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_notification_lifecycle() {
+        let repository = Arc::new(TestRepository {
+            notifications: Mutex::new(HashMap::new()),
+        });
+        let notification_service = Arc::new(MockNotificationService::new());
+        let job_manager = Arc::new(BackgroundJobManager::new());
+
+        // Register notification processor
+        let processor = Arc::new(NotificationProcessor::new(
+            notification_service.clone(),
+            repository.clone(),
+            Arc::new(NoopEventPublisher::default()),
+        ));
+        job_manager.register_handler(processor).await.unwrap();
+
+        let service = DefaultNotificationService::new(repository, job_manager);
+
+        // Create a notification
+        let metadata = NotificationMetadata {
+            source: NotificationSource::Email,
+            external_id: Some("test123".to_string()),
+            url: Some("https://example.com".to_string()),
+            tags: vec!["test".to_string()],
+            custom_data: None,
+        };
+
+        let notification = service
+            .create_notification(
+                "Test".to_string(),
+                "Test Content".to_string(),
+                NotificationPriority::Medium,
+                metadata,
+            )
+            .await
+            .unwrap();
+
+        // Verify creation
+        let retrieved = service.get_notification(notification.id).await.unwrap();
+        assert_eq!(retrieved.title, "Test");
+        assert_eq!(retrieved.status, NotificationStatus::New);
+
+        // Test status changes
+        service.mark_as_read(notification.id).await.unwrap();
+        let retrieved = service.get_notification(notification.id).await.unwrap();
+        assert_eq!(retrieved.status, NotificationStatus::Read);
+
+        service.mark_action_required(notification.id).await.unwrap();
+        let retrieved = service.get_notification(notification.id).await.unwrap();
+        assert_eq!(retrieved.status, NotificationStatus::ActionRequired);
+
+        service.mark_action_taken(notification.id).await.unwrap();
+        let retrieved = service.get_notification(notification.id).await.unwrap();
+        assert_eq!(retrieved.status, NotificationStatus::ActionTaken);
+
+        service.archive_notification(notification.id).await.unwrap();
+        let retrieved = service.get_notification(notification.id).await.unwrap();
+        assert_eq!(retrieved.status, NotificationStatus::Archived);
+
+        // Test deletion
+        service.delete_notification(notification.id).await.unwrap();
+        let result = service.get_notification(notification.id).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_analyze_notification_content() {
+        let repository = Arc::new(TestRepository {
+            notifications: Mutex::new(HashMap::new()),
+        });
+        let job_manager = Arc::new(BackgroundJobManager::new());
+        let service = DefaultNotificationService::new(repository, job_manager);
+
+        let metadata = NotificationMetadata {
+            source: NotificationSource::Email,
+            external_id: None,
+            url: None,
+            tags: vec![],
+            custom_data: None,
+        };
+
+        // Test with action keywords
+        let notification = Notification::new(
+            "Action Required".to_string(),
+            "This is an urgent task that requires your attention".to_string(),
+            NotificationPriority::High,
+            metadata.clone(),
+        );
+        let requires_action = service
+            .analyze_notification_content(&notification)
+            .await
+            .unwrap();
+        assert!(requires_action);
+
+        // Test without action keywords
+        let notification = Notification::new(
+            "Simple Update".to_string(),
+            "This is a regular update message".to_string(),
+            NotificationPriority::Low,
+            metadata,
+        );
+        let requires_action = service
+            .analyze_notification_content(&notification)
+            .await
+            .unwrap();
+        assert!(!requires_action);
+    }
+
+    #[tokio::test]
+    async fn test_generate_response() {
+        let repository = Arc::new(TestRepository {
+            notifications: Mutex::new(HashMap::new()),
+        });
+        let job_manager = Arc::new(BackgroundJobManager::new());
+        let service = DefaultNotificationService::new(repository, job_manager);
+
+        // Test response generation for different sources
+        let sources = vec![
+            NotificationSource::Email,
+            NotificationSource::Github,
+            NotificationSource::Gitlab,
+            NotificationSource::Jira,
+            NotificationSource::Microsoft,
+            NotificationSource::Google,
+            NotificationSource::LinkedIn,
+            NotificationSource::Custom("Test".to_string()),
+        ];
+
+        for source in sources {
+            let metadata = NotificationMetadata {
+                source: source.clone(),
+                external_id: None,
+                url: None,
+                tags: vec![],
+                custom_data: None,
+            };
+
+            let notification = Notification::new(
+                "Test".to_string(),
+                "Content".to_string(),
+                NotificationPriority::Medium,
+                metadata,
+            );
+
+            let response = service.generate_response(&notification).await.unwrap();
+            assert!(!response.is_empty());
+
+            // Verify source-specific response
+            match source {
+                NotificationSource::Email => assert!(response.contains("email")),
+                NotificationSource::Github => assert!(response.contains("GitHub")),
+                NotificationSource::Gitlab => assert!(response.contains("GitLab")),
+                NotificationSource::Jira => assert!(response.contains("Jira")),
+                NotificationSource::Microsoft => assert!(response.contains("Microsoft")),
+                NotificationSource::Google => assert!(response.contains("Google")),
+                NotificationSource::LinkedIn => assert!(response.contains("LinkedIn")),
+                NotificationSource::Custom(_) => assert!(response.contains("notification")),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_execute_action() {
+        let repository = Arc::new(TestRepository {
+            notifications: Mutex::new(HashMap::new()),
+        });
+        let job_manager = Arc::new(BackgroundJobManager::new());
+        let service = DefaultNotificationService::new(repository, job_manager);
+
+        let metadata = NotificationMetadata {
+            source: NotificationSource::Email,
+            external_id: None,
+            url: None,
+            tags: vec![],
+            custom_data: None,
+        };
+
+        let notification = Notification::new(
+            "Test Action".to_string(),
+            "Content requiring action".to_string(),
+            NotificationPriority::High,
+            metadata,
+        );
+
+        // Verify action execution doesn't fail
+        let result = service.execute_action(&notification).await;
+        assert!(result.is_ok());
+    }
+}
