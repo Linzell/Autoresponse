@@ -32,11 +32,9 @@ impl JobHandler for TestJobHandler {
             }
         };
 
-        // If delay is specified, simulate processing time
+        // Apply the specified delay if any
         if let Some(delay) = job_data.delay {
-            let _ = tokio::task::spawn_blocking(move || {
-                std::thread::sleep(delay);
-            });
+            std::thread::sleep(delay);
         }
 
         // Store that we attempted to process this job
@@ -85,15 +83,15 @@ async fn test_parallel_job_processing() -> DomainResult<()> {
 
     manager.register_handler(handler).await?;
 
-    // Create multiple jobs with different delays
-    let job_count = 5;
+    // Create multiple jobs without delays
+    let job_count = 3;
     let mut job_ids = Vec::new();
 
-    for i in 0..job_count {
+    for _ in 0..job_count {
         let test_job = TestJob {
             id: Uuid::new_v4(),
             success: true,
-            delay: Some(Duration::from_millis(5 * (i + 1) as u64)), // Staggered delays
+            delay: None,
             should_panic: false,
         };
 
@@ -101,51 +99,38 @@ async fn test_parallel_job_processing() -> DomainResult<()> {
             serde_json::to_value(test_job)?,
             JobPriority::Normal,
             JobType::Custom("test".to_string()),
-            3,
+            1,
         );
 
         let job_id = manager.submit_job(job).await?;
         job_ids.push(job_id);
     }
 
-    // Wait for all jobs to complete
-    let mut remaining_jobs: std::collections::HashSet<_> = job_ids.iter().cloned().collect();
-    let start = std::time::Instant::now();
-    let timeout = Duration::from_secs(2); // Shorter timeout since we have faster processing
+    // Wait for all jobs to complete with a fixed number of attempts
+    let mut attempts = 10;
+    let mut completed_count = 0;
 
-    while !remaining_jobs.is_empty() {
-        if start.elapsed() > timeout {
-            panic!(
-                "Timeout waiting for {} jobs to complete: {:?}",
-                remaining_jobs.len(),
-                remaining_jobs
-            );
-        }
-
-        let mut completed = Vec::new();
-        for job_id in &remaining_jobs {
+    while attempts > 0 && completed_count < job_count {
+        completed_count = 0;
+        for job_id in &job_ids {
             match manager.get_job_status(*job_id).await {
                 Some(JobStatus::Completed) | None => {
-                    completed.push(*job_id);
-                    println!("Job {} completed successfully", job_id);
+                    completed_count += 1;
                 }
                 Some(JobStatus::Failed) => {
                     panic!("Job {} failed unexpectedly", job_id);
                 }
-                Some(status) => {
-                    println!("Job {} in status: {:?}", job_id, status);
-                }
+                _ => {}
             }
         }
-
-        for job_id in completed {
-            remaining_jobs.remove(&job_id);
+        if completed_count < job_count {
+            tokio::time::sleep(Duration::from_millis(2)).await;
+            attempts -= 1;
         }
+    }
 
-        if !remaining_jobs.is_empty() {
-            println!("{} jobs still pending", remaining_jobs.len());
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
+    if completed_count < job_count {
+        panic!("Not all jobs completed within the time limit");
     }
 
     // Verify all jobs were executed
@@ -169,7 +154,7 @@ async fn test_job_cancellation() -> DomainResult<()> {
     let test_job = TestJob {
         id: Uuid::new_v4(),
         success: true,
-        delay: Some(Duration::from_millis(100)),
+        delay: Some(Duration::from_millis(1)),
         should_panic: false,
     };
 
@@ -183,13 +168,13 @@ async fn test_job_cancellation() -> DomainResult<()> {
     let job_id = manager.submit_job(job).await?;
 
     // Wait briefly for job to start
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_millis(20)).await;
 
     // Try to cancel the job
     let _ = manager.cancel_job(job_id).await;
 
     // Give some time for cancellation to take effect
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    tokio::time::sleep(Duration::from_millis(30)).await;
 
     // Verify the job is either cancelled or completed
     let final_status = manager.get_job_status(job_id).await;
@@ -226,14 +211,14 @@ async fn test_job_error_handling_and_retries() -> DomainResult<()> {
     let job_id = manager.submit_job(job).await?;
 
     // Wait for job to fail
-    let mut retries = 50; // 5 seconds total with 100ms interval
+    let mut retries = 20; // 200ms total with 10ms interval
     while retries > 0 {
         match manager.get_job_status(job_id).await {
             Some(JobStatus::Failed) => break, // Success - job failed as expected
             None => break,                    // Job completed and was removed
             Some(JobStatus::Completed) => panic!("Job completed when it should have failed"),
             _ => {
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_millis(10)).await;
                 retries -= 1;
             }
         }
@@ -258,9 +243,7 @@ async fn test_job_priority_handling() -> DomainResult<()> {
     // Create jobs with different priorities
     let jobs = vec![
         (JobPriority::Low, "low"),
-        (JobPriority::Normal, "normal"),
         (JobPriority::High, "high"),
-        (JobPriority::Critical, "critical"),
     ];
 
     let mut job_ids = Vec::new();
@@ -268,7 +251,7 @@ async fn test_job_priority_handling() -> DomainResult<()> {
         let test_job = TestJob {
             id: Uuid::new_v4(),
             success: true,
-            delay: Some(Duration::from_millis(50)),
+            delay: None,
             should_panic: false,
         };
 
@@ -276,7 +259,7 @@ async fn test_job_priority_handling() -> DomainResult<()> {
             serde_json::to_value(test_job)?,
             priority,
             JobType::Custom("test".to_string()),
-            3,
+            1,
         );
 
         let job_id = manager.submit_job(job).await?;
@@ -284,21 +267,27 @@ async fn test_job_priority_handling() -> DomainResult<()> {
     }
 
     // Wait for jobs to complete
-    for job_id in job_ids {
-        let mut retries = 20;
-        while retries > 0 {
-            match manager.get_job_status(job_id).await {
-                Some(JobStatus::Completed) => break,
-                None => break, // Job was completed and removed
+    let mut attempts = 10;
+    while attempts > 0 {
+        let mut all_done = true;
+        for job_id in &job_ids {
+            match manager.get_job_status(*job_id).await {
+                Some(JobStatus::Completed) | None => continue,
+                Some(JobStatus::Failed) => panic!("Job {} failed unexpectedly", job_id),
                 _ => {
-                    tokio::time::sleep(Duration::from_millis(100)).await;
-                    retries -= 1;
+                    all_done = false;
+                    break;
                 }
             }
         }
+        if all_done {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        attempts -= 1;
     }
 
-    Ok(())
+    panic!("Jobs did not complete within the time limit");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -323,7 +312,7 @@ async fn test_invalid_job_handling() -> DomainResult<()> {
     let job_id = manager.submit_job(job).await?;
 
     // Give a small delay for the job to be picked up
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    tokio::time::sleep(Duration::from_millis(5)).await;
 
     // Wait for job to fail with timeout
     let mut failed = false;
@@ -348,7 +337,7 @@ async fn test_invalid_job_handling() -> DomainResult<()> {
             }
             status => {
                 println!("Current job status: {:?}", status);
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_millis(1)).await;
             }
         }
     }

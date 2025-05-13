@@ -1,19 +1,107 @@
+use std::sync::Arc;
+use std::time::Duration;
 use crate::domain::{
     entities::{Notification, NotificationMetadata, NotificationSource, NotificationStatus},
     error::DomainError,
     repositories::NotificationRepository,
 };
-use crate::infrastructure::repositories::sqlite_base::SqliteRepository;
+use crate::infrastructure::repositories::{
+    sqlite_base::SqliteRepository,
+    cached_repository::{CachedRepository, Repository},
+};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, Row};
 use serde_json::Value;
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 pub struct SqliteNotificationRepository {
     connection: Arc<Mutex<Connection>>,
+}
+
+pub struct CachedSqliteNotificationRepository {
+    inner: CachedRepository<Notification, SqliteNotificationRepository>,
+    base_repo: Arc<SqliteNotificationRepository>,
+}
+
+impl CachedSqliteNotificationRepository {
+    pub fn new(repository: SqliteNotificationRepository, max_capacity: u64, ttl: Duration) -> Self {
+        let base_repo = Arc::new(repository);
+        Self {
+            inner: CachedRepository::new(Arc::clone(&base_repo), max_capacity, ttl),
+            base_repo,
+        }
+    }
+}
+
+#[async_trait]
+impl NotificationRepository for CachedSqliteNotificationRepository {
+    async fn save(&self, notification: &mut Notification) -> Result<(), DomainError> {
+        let result = NotificationRepository::save(&*self.base_repo, notification).await;
+        if result.is_ok() {
+            self.inner.invalidate(notification.id).await;
+        }
+        result
+    }
+
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<Notification>, DomainError> {
+        self.inner.find_by_id(id).await
+    }
+
+    async fn find_all(&self) -> Result<Vec<Notification>, DomainError> {
+        NotificationRepository::find_all(&*self.base_repo).await
+    }
+
+    async fn find_by_status(
+        &self,
+        status: NotificationStatus,
+    ) -> Result<Vec<Notification>, DomainError> {
+        self.base_repo.find_by_status(status).await
+    }
+
+    async fn find_by_source(
+        &self,
+        source: NotificationSource,
+    ) -> Result<Vec<Notification>, DomainError> {
+        self.base_repo.find_by_source(source).await
+    }
+
+    async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
+        let result = NotificationRepository::delete(&*self.base_repo, id).await;
+        if result.is_ok() {
+            self.inner.invalidate(id).await;
+        }
+        result
+    }
+
+    async fn update_status(&self, id: Uuid, status: NotificationStatus) -> Result<(), DomainError> {
+        let result = self.base_repo.update_status(id, status).await;
+        if result.is_ok() {
+            self.inner.invalidate(id).await;
+        }
+        result
+    }
+}
+
+#[async_trait]
+impl Repository<Notification> for SqliteNotificationRepository {
+    async fn save(&self, entity: &mut Notification) -> Result<(), DomainError> {
+        <Self as SqliteRepository<Notification>>::save(self, entity).await
+    }
+
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<Notification>, DomainError> {
+        <Self as SqliteRepository<Notification>>::find_by_id(self, id).await
+    }
+
+    async fn find_all(&self) -> Result<Vec<Notification>, DomainError> {
+        <Self as SqliteRepository<Notification>>::find_all(self).await
+    }
+
+    async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
+        <Self as SqliteRepository<Notification>>::delete(self, id).await
+    }
 }
 
 impl SqliteNotificationRepository {
@@ -220,6 +308,7 @@ impl NotificationRepository for SqliteNotificationRepository {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
     use crate::domain::NotificationPriority;
 
     use super::*;
@@ -243,6 +332,49 @@ mod tests {
             read_at: None,
             action_taken_at: None,
         }
+    }
+
+    #[tokio::test]
+    async fn test_cached_repository() {
+        let base_repo = SqliteNotificationRepository::new(":memory:").unwrap();
+        let repo = CachedSqliteNotificationRepository::new(
+            base_repo,
+            100,
+            Duration::from_secs(30),
+        );
+        let mut notification = create_test_notification().await;
+
+        // Test save and cache invalidation
+        NotificationRepository::save(&repo, &mut notification)
+            .await
+            .unwrap();
+        
+        // Test find by id (should use cache)
+        let found = NotificationRepository::find_by_id(&repo, notification.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.title, notification.title);
+        assert_eq!(found.content, notification.content);
+
+        // Test update status with cache invalidation
+        repo.update_status(notification.id, NotificationStatus::Read)
+            .await
+            .unwrap();
+        let updated = NotificationRepository::find_by_id(&repo, notification.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated.status, NotificationStatus::Read);
+
+        // Test delete with cache invalidation
+        NotificationRepository::delete(&repo, notification.id)
+            .await
+            .unwrap();
+        let deleted = NotificationRepository::find_by_id(&repo, notification.id)
+            .await
+            .unwrap();
+        assert!(deleted.is_none());
     }
 
     #[tokio::test]
