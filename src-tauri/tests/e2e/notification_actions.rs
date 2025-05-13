@@ -10,7 +10,9 @@ use autoresponse_lib::{
             notification_service::{DefaultNotificationService, NotificationService},
         },
     },
-    infrastructure::repositories::sqlite_notification_repository::SqliteNotificationRepository,
+    infrastructure::repositories::sqlite_notification_repository::{
+        CachedSqliteNotificationRepository, SqliteNotificationRepository,
+    },
 };
 use std::sync::Arc;
 use tokio;
@@ -31,7 +33,12 @@ impl JobHandler for TestJobHandler {
 async fn setup_test_service() -> Arc<dyn NotificationService> {
     setup_test_env();
 
-    let notification_repo = SqliteNotificationRepository::new(":memory:").unwrap();
+    let base_repo = SqliteNotificationRepository::new(":memory:").unwrap();
+    let notification_repo = CachedSqliteNotificationRepository::new(
+        base_repo,
+        1000,
+        std::time::Duration::from_secs(300),
+    );
     let job_manager = Arc::new(BackgroundJobManager::new());
 
     // Register notification processing handler

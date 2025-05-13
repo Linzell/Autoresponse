@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::infrastructure::repositories::cached_repository::CachedEntity;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NotificationPriority {
@@ -53,6 +54,12 @@ pub struct Notification {
     pub updated_at: DateTime<Utc>,
     pub read_at: Option<DateTime<Utc>>,
     pub action_taken_at: Option<DateTime<Utc>>,
+}
+
+impl CachedEntity for Notification {
+    fn get_id(&self) -> Uuid {
+        self.id
+    }
 }
 
 impl Notification {

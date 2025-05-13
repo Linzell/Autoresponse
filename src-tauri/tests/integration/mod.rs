@@ -19,6 +19,9 @@ mod processor_test;
 mod service_config_test;
 
 #[cfg(test)]
+mod cached_repository_test;
+
+#[cfg(test)]
 mod tests {
 
     #[test]
