@@ -71,66 +71,66 @@ impl BackgroundJobManager {
         handler: Arc<dyn JobHandler>,
         active_jobs: Arc<RwLock<HashMap<uuid::Uuid, Arc<RwLock<Job>>>>>,
     ) {
-        let job_id = { job.read().await.id };
+        let (job_id, job_type) = {
+            let job_read = job.read().await;
+            (job_read.id, job_read.metadata.job_type.clone())
+        };
+        
         let start_time = std::time::Instant::now();
-        let job_type = { job.read().await.metadata.job_type.clone() };
 
         info!(
             "Starting job processing. ID: {}, Type: {:?}",
             job_id, job_type
         );
 
-        // Track job state transitions
+        // Mark job as started
         {
-            let mut job = job.write().await;
-            job.start();
-            info!("Job state changed to Running. ID: {}", job_id);
-
-            // Process the job
-            let result = handler.handle(&mut job);
-
-            match &result {
-                Ok(()) => {
-                    let elapsed = start_time.elapsed();
-                    job.complete();
-                    info!(
-                        "Job completed successfully. ID: {}, Type: {:?}, Duration: {:?}",
-                        job_id, job_type, elapsed
-                    );
-                }
-                Err(error) => {
-                    let elapsed = start_time.elapsed();
-                    job.fail(error.clone());
-                    warn!(
-                        "Job failed. ID: {}, Type: {:?}, Duration: {:?}, Error: {}",
-                        job_id, job_type, elapsed, error
-                    );
-
-                    if !job.can_retry() {
-                        error!(
-                            "Job exceeded maximum retries. ID: {}, Type: {:?}",
-                            job_id, job_type
-                        );
-                    }
-                }
-            }
+            let mut job_write = job.write().await;
+            job_write.start();
         }
+        info!("Job state changed to Running. ID: {}", job_id);
 
-        // Update final job status
-        {
-            let job = job.write().await;
-            info!("Final job status: {:?}, ID: {}", job.status, job_id);
+        // Process the job with minimal lock time
+        let mut job_inner = job.write().await;
+        let result = handler.handle(&mut job_inner);
+        let status = match &result {
+            Ok(()) => {
+                let elapsed = start_time.elapsed();
+                job_inner.complete();
+                info!(
+                    "Job completed successfully. ID: {}, Type: {:?}, Duration: {:?}",
+                    job_id, job_type, elapsed
+                );
+                JobStatus::Completed
+            }
+            Err(error) => {
+                let elapsed = start_time.elapsed();
+                job_inner.fail(error.clone());
+                warn!(
+                    "Job failed. ID: {}, Type: {:?}, Duration: {:?}, Error: {}",
+                    job_id, job_type, elapsed, error
+                );
 
-            // Only remove completed/failed jobs
-            if matches!(job.status, JobStatus::Completed | JobStatus::Failed) {
-                let mut active_jobs = active_jobs.write().await;
-                match active_jobs.remove(&job_id) {
-                    Some(_) => info!("Job removed from active jobs. ID: {}", job_id),
-                    None => warn!(
-                        "Job not found in active jobs during cleanup. ID: {}",
-                        job_id
-                    ),
+                if !job_inner.can_retry() {
+                    error!(
+                        "Job exceeded maximum retries. ID: {}, Type: {:?}",
+                        job_id, job_type
+                    );
                 }
+                JobStatus::Failed
+            }
+        };
+        drop(job_inner); // Explicitly release the lock
+
+        // Remove from active jobs if complete/failed
+        if matches!(status, JobStatus::Completed | JobStatus::Failed) {
+            let mut active_jobs = active_jobs.write().await;
+            match active_jobs.remove(&job_id) {
+                Some(_) => info!("Job removed from active jobs. ID: {}", job_id),
+                None => warn!(
+                    "Job not found in active jobs during cleanup. ID: {}",
+                    job_id
+                ),
             }
         }
     }
@@ -178,8 +178,8 @@ mod tests {
 
     impl JobHandler for TestHandler {
         fn handle(&self, job: &mut Job) -> Result<(), String> {
-            // Small delay to simulate work
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            // Minimal delay to avoid busy waiting
+            std::thread::sleep(std::time::Duration::from_micros(100));
             job.complete();
             Ok(())
         }
@@ -213,10 +213,10 @@ mod tests {
 
         // Track job completion with exponential backoff
         let start_time = std::time::Instant::now();
-        let timeout = std::time::Duration::from_secs(5); // Increased timeout
+        let timeout = std::time::Duration::from_secs(1); // Short timeout since jobs are fast
         let mut attempts = 0;
         let mut last_status = None;
-        let check_interval = std::time::Duration::from_millis(100);
+        let check_interval = std::time::Duration::from_millis(5);
 
         loop {
             if start_time.elapsed() >= timeout {
