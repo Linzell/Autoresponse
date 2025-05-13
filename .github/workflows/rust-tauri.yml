@@ -76,12 +76,13 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
+          working-directory: src-tauri
           key: test-${{ matrix.test-group }}
           cache-directories: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git
-            src-tauri/target
+            target
 
       - name: Check format
         working-directory: src-tauri
@@ -100,9 +101,6 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     timeout-minutes: 20
-    strategy:
-      matrix:
-        test-group: [unit, integration]
     steps:
       - uses: actions/checkout@v4
 
@@ -117,12 +115,13 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
+          working-directory: src-tauri
           key: test-${{ matrix.test-group }}
           cache-directories: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git
-            src-tauri/target
+            target
 
       - name: Run tests
         working-directory: src-tauri
