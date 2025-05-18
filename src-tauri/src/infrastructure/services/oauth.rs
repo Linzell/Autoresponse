@@ -319,7 +319,7 @@ mod tests {
     use mockall::{mock, predicate::*};
     use serde_json::json;
     use wiremock::{
-        matchers::{method, header, body_string_contains},
+        matchers::{body_string_contains, header, method},
         Mock, MockServer, ResponseTemplate,
     };
 
@@ -385,8 +385,7 @@ mod tests {
             .and(body_string_contains("client_id"))
             .and(body_string_contains("client_secret"))
             .and(body_string_contains("test_code"))
-            .respond_with(ResponseTemplate::new(200)
-                .set_body_json(json!({
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                     "access_token": "test_access_token",
                     "token_type": "bearer",
                     "expires_in": 3600,
