@@ -1,9 +1,16 @@
 pub mod application;
+pub mod commands;
 pub mod domain;
 pub mod infrastructure;
 pub mod presentation;
+#[cfg(test)]
+pub mod test_utils;
 
 use application::{NotificationUseCases, ServiceConfigUseCases};
+use commands::oauth::{
+    delete_oauth_service_config, get_service_configs, handle_oauth_callback,
+    save_oauth_config, start_oauth_flow,
+};
 use domain::{
     services::{
         background::BackgroundJobManager, DefaultNotificationService, DefaultServiceConfigService,
@@ -12,6 +19,8 @@ use domain::{
     NotificationRepository, ServiceConfigRepository,
 };
 use infrastructure::repositories::{SqliteNotificationRepository, SqliteServiceConfigRepository};
+use infrastructure::services::oauth::DefaultOAuthService;
+use infrastructure::services::oauth::OAuthService;
 use presentation::{
     controllers::{NotificationController, ServiceConfigController},
     dtos::{
@@ -91,7 +100,7 @@ async fn disable_service(
     state.disable_service(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn delete_service_config(
     state: tauri::State<'_, ServiceConfigController>,
     id: String,
@@ -247,6 +256,7 @@ pub fn run() {
     let job_manager = Arc::new(BackgroundJobManager::new());
 
     // Initialize services
+    let oauth_service = Arc::new(DefaultOAuthService::new(service_config_repository.clone()));
     let service_config_service = Arc::new(DefaultServiceConfigService::new(
         service_config_repository.clone(),
     )) as Arc<dyn ServiceConfigService>;
@@ -273,6 +283,8 @@ pub fn run() {
         .manage(notification_controller)
         .manage(service_config_use_cases)
         .manage(notification_use_cases)
+        .manage(service_config_repository.clone() as Arc<dyn ServiceConfigRepository>)
+        .manage(oauth_service as Arc<dyn OAuthService>)
         .invoke_handler(tauri::generate_handler![
             // Service Config Commands
             create_service_config,
@@ -282,6 +294,12 @@ pub fn run() {
             enable_service,
             disable_service,
             delete_service_config,
+            // OAuth Commands
+            delete_oauth_service_config,
+            save_oauth_config,
+            get_service_configs,
+            start_oauth_flow,
+            handle_oauth_callback,
             // Notification Commands
             create_notification,
             get_notification,
