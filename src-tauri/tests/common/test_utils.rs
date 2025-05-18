@@ -9,10 +9,10 @@ pub fn create_test_oauth2_config() -> OAuth2Config {
     OAuth2Config {
         client_id: format!("test_client_{}", Uuid::new_v4()),
         client_secret: format!("test_secret_{}", Uuid::new_v4()),
-        redirect_uri: "http://localhost:8080/callback".to_string(),
-        auth_url: "http://auth.example.com/oauth/authorize".to_string(),
-        token_url: "http://auth.example.com/oauth/token".to_string(),
-        scope: vec!["read".to_string(), "write".to_string()],
+        redirect_uri: "http://localhost:1420/oauth/callback".to_string(),
+        auth_url: "https://github.com/login/oauth/authorize".to_string(),
+        token_url: "https://github.com/login/oauth/access_token".to_string(),
+        scope: vec!["repo".to_string(), "user".to_string(), "notifications".to_string()],
         access_token: None,
         refresh_token: None,
         token_expires_at: None,
@@ -101,7 +101,12 @@ mod tests {
         let config = create_test_oauth2_config();
         assert!(!config.client_id.is_empty());
         assert!(!config.client_secret.is_empty());
-        assert_eq!(config.redirect_uri, "http://localhost:8080/callback");
+        assert_eq!(config.redirect_uri, "http://localhost:1420/oauth/callback");
+        assert_eq!(config.auth_url, "https://github.com/login/oauth/authorize");
+        assert_eq!(config.token_url, "https://github.com/login/oauth/access_token");
+        assert!(config.scope.contains(&"repo".to_string()));
+        assert!(config.scope.contains(&"user".to_string()));
+        assert!(config.scope.contains(&"notifications".to_string()));
     }
 
     #[test]
