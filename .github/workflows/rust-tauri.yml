@@ -76,7 +76,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          working-directory: src-tauri
+          workspaces: src-tauri
           key: test-${{ matrix.test-group }}
           cache-directories: |
             ~/.cargo/registry/index
@@ -115,7 +115,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          working-directory: src-tauri
+          workspaces: src-tauri
           key: test-${{ matrix.test-group }}
           cache-directories: |
             ~/.cargo/registry/index
