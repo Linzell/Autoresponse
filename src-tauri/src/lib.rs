@@ -8,8 +8,8 @@ pub mod test_utils;
 
 use application::{NotificationUseCases, ServiceConfigUseCases};
 use commands::oauth::{
-    delete_oauth_service_config, get_service_configs, handle_oauth_callback,
-    save_oauth_config, start_oauth_flow,
+    delete_oauth_service_config, get_service_configs, handle_oauth_callback, save_oauth_config,
+    start_oauth_flow,
 };
 use domain::{
     services::{
