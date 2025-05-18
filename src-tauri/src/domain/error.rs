@@ -8,6 +8,15 @@ pub enum DomainError {
     #[error("Not found error: {0}")]
     NotFoundError(String),
 
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
+    #[error("Invalid operation: {0}")]
+    InvalidOperation(String),
+
     #[error("Unauthorized error: {0}")]
     UnauthorizedError(String),
 

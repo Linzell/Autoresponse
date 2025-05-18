@@ -118,6 +118,21 @@ impl From<crate::domain::error::DomainError> for NotificationError {
                 message: msg,
                 details: vec![],
             },
+            crate::domain::error::DomainError::NotFound(msg) => Self {
+                code: "NOT_FOUND".to_string(),
+                message: msg,
+                details: vec![],
+            },
+            crate::domain::error::DomainError::InvalidInput(msg) => Self {
+                code: "VALIDATION_ERROR".to_string(),
+                message: msg,
+                details: vec![],
+            },
+            crate::domain::error::DomainError::InvalidOperation(msg) => Self {
+                code: "INVALID_OPERATION".to_string(),
+                message: msg,
+                details: vec![],
+            },
             crate::domain::error::DomainError::UnauthorizedError(msg) => Self {
                 code: "UNAUTHORIZED".to_string(),
                 message: msg,
