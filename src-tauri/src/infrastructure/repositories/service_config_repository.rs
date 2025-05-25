@@ -39,7 +39,7 @@ impl ServiceConfigRepository {
             .collect())
     }
 
-    pub fn list_all(&self) -> Result<Vec<ServiceConfig>, String> {
+    pub fn find_all(&self) -> Result<Vec<ServiceConfig>, String> {
         let configs = self.configs.lock().map_err(|e| e.to_string())?;
         Ok(configs.values().cloned().collect())
     }
