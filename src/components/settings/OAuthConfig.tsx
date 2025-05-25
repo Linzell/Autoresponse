@@ -58,11 +58,20 @@ export const OAuthConfig: React.FC = () => {
 
   useEffect(() => {
     loadConfigs();
-    setupOAuthListener();
+    const setupAndCleanupListener = async () => {
+      const unlisten = await setupOAuthListener();
+      return () => {
+        unlisten();
+      };
+    };
+    const cleanupPromise = setupAndCleanupListener();
+    return () => {
+      cleanupPromise.then((cleanup) => cleanup && cleanup());
+    };
   }, []);
 
   const setupOAuthListener = async () => {
-    await listen('oauth-callback', (event: any) => {
+    const unlisten = await listen('oauth-callback', (event: any) => {
       const { success, configId, error } = event.payload;
       if (success) {
         setSuccess(`OAuth configuration completed successfully!`);
