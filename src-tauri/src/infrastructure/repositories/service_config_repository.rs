@@ -30,7 +30,7 @@ impl ServiceConfigRepository {
         Ok(configs.get(id).cloned())
     }
 
-    pub fn find_by_type(&self, service_type: &ServiceType) -> Result<Vec<ServiceConfig>, String> {
+    pub fn find_by_service_type(&self, service_type: &ServiceType) -> Result<Vec<ServiceConfig>, String> {
         let configs = self.configs.lock().map_err(|e| e.to_string())?;
         Ok(configs
             .values()
