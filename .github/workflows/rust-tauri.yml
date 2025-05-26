@@ -119,6 +119,3 @@ jobs:
           setup-rust-cache: true
           use-tarpaulin: true
           upload-coverage: true
-          features: "all-features"
-          no-default-features: false
-          use-cross: false
