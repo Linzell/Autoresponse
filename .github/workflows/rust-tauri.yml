@@ -104,18 +104,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-tools-preview
 
-      - name: Run Tests and Upload Coverage
-        uses: Reloaded-Project/devops-rust-test-and-coverage@v1
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          rust-project-path: "src-tauri"
-          rust-toolchain: "stable"
-          target: "x86_64-unknown-linux-gnu"
-          install-rust-toolchain: true
-          setup-rust-cache: true
-          use-tarpaulin: true
-          upload-coverage: true
+          workspaces: src-tauri
+          key: test-${{ matrix.test-group }}
+          cache-directories: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+            target
+
+      - name: Run tests with coverage
+        working-directory: src-tauri
+        env:
+          RUSTFLAGS: "-C instrument-coverage"
+          LLVM_PROFILE_FILE: "default_%m_%p.profraw"
+        run: cargo test --tests --all-features
+
+      - name: Generate coverage report
+        working-directory: src-tauri
+        run: |
+          llvm-profdata merge -sparse default_*.profraw -o coverage.profdata
+          llvm-cov report --use-color --ignore-filename-regex='/.cargo/registry' \
+            --instr-profile=coverage.profdata \
+            --object target/debug/deps/* > coverage_summary.txt
+          llvm-cov show --use-color --ignore-filename-regex='/.cargo/registry' \
+            --instr-profile=coverage.profdata \
+            --object target/debug/deps/* \
+            --show-instantiations --show-line-counts-or-regions > coverage_detailed.txt
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage
+          path: src-tauri/coverage_*.txt
+          retention-days: 14
