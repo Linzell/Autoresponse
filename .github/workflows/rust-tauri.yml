@@ -77,7 +77,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: test-${{ matrix.test-group }}
+          key: check-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           cache-directories: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
@@ -98,16 +98,19 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
-    if: always()
-    timeout-minutes: 20
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install system dependencies
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt update
           sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-tools-preview
@@ -117,7 +120,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: test-${{ matrix.test-group }}
+          key: test-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           cache-directories: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
@@ -128,24 +131,33 @@ jobs:
         working-directory: src-tauri
         env:
           RUSTFLAGS: "-C instrument-coverage"
-          LLVM_PROFILE_FILE: "default_%m_%p.profraw"
-        run: cargo test --tests --all-features
+          LLVM_PROFILE_FILE: "coverage/lcov-%p-%m.profraw"
+        run: cargo test --all-targets --all-features
+
+      - name: Install grcov
+        if: runner.os == 'Linux'
+        run: |
+          wget https://github.com/mozilla/grcov/releases/download/v0.8.18/grcov-x86_64-unknown-linux-gnu.tar.bz2
+          tar xf grcov-x86_64-unknown-linux-gnu.tar.bz2
+          chmod +x grcov
+          sudo mv grcov /usr/local/bin/
 
       - name: Generate coverage report
         working-directory: src-tauri
         run: |
-          llvm-profdata merge -sparse default_*.profraw -o coverage.profdata
-          llvm-cov report --use-color --ignore-filename-regex='/.cargo/registry' \
-            --instr-profile=coverage.profdata \
-            --object target/debug/deps/* > coverage_summary.txt
-          llvm-cov show --use-color --ignore-filename-regex='/.cargo/registry' \
-            --instr-profile=coverage.profdata \
-            --object target/debug/deps/* \
-            --show-instantiations --show-line-counts-or-regions > coverage_detailed.txt
+          grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" --ignore "tests/*" -o coverage.lcov
 
-      - name: Upload coverage
+      - name: Upload coverage to Codecov
+        if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v3
+        with:
+          file: src-tauri/coverage.lcov
+          fail_ci_if_error: true
+
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rust-coverage
-          path: src-tauri/coverage_*.txt
+          name: test-results-${{ runner.os }}
+          path: src-tauri/target/debug/deps/
           retention-days: 14
