@@ -104,39 +104,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+      - name: Run Tests and Upload Coverage
+        uses: Reloaded-Project/devops-rust-test-and-coverage@v1
         with:
-          workspaces: src-tauri
-          key: test-${{ matrix.test-group }}
-          cache-directories: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git
-            target
-
-      - name: Run tests
-        working-directory: src-tauri
-        run: cargo test --all-features
-
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
-
-      - name: Generate coverage
-        working-directory: src-tauri
-        run: cargo tarpaulin --out xml --output-dir ../coverage
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-coverage
-          path: coverage/
-          retention-days: 14
+          rust-project-path: "src-tauri"
+          rust-toolchain: "stable"
+          target: "x86_64-unknown-linux-gnu"
+          install-rust-toolchain: true
+          setup-rust-cache: true
+          use-tarpaulin: true
+          upload-coverage: true
+          features: "all-features"
+          no-default-features: false
+          use-cross: false
