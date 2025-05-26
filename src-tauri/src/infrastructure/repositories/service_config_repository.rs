@@ -30,7 +30,10 @@ impl ServiceConfigRepository {
         Ok(configs.get(id).cloned())
     }
 
-    pub fn find_by_service_type(&self, service_type: &ServiceType) -> Result<Vec<ServiceConfig>, String> {
+    pub fn find_by_service_type(
+        &self,
+        service_type: &ServiceType,
+    ) -> Result<Vec<ServiceConfig>, String> {
         let configs = self.configs.lock().map_err(|e| e.to_string())?;
         Ok(configs
             .values()
@@ -154,14 +157,14 @@ mod tests {
     }
 
     #[test]
-    fn test_find_by_type() {
+    fn test_find_by_service_type() {
         let repo = ServiceConfigRepository::new();
         let config = create_test_config();
         let service_type = config.service_type.clone();
 
         repo.save(config).unwrap();
 
-        let configs = repo.find_by_type(&service_type).unwrap();
+        let configs = repo.find_by_service_type(&service_type).unwrap();
         assert_eq!(configs.len(), 1);
         assert!(matches!(configs[0].service_type, ServiceType::Github));
     }

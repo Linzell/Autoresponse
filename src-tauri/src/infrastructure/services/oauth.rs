@@ -5,6 +5,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+const DEFAULT_REDIRECT_URI: &str = "http://localhost:1420/oauth/callback";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
@@ -65,7 +67,7 @@ impl DefaultOAuthService {
             ServiceType::Github => OAuth2Config {
                 client_id: String::new(),
                 client_secret: String::new(),
-                redirect_uri: "http://localhost:1420/oauth/callback".to_string(),
+                redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://github.com/login/oauth/authorize".to_string(),
                 token_url: "https://github.com/login/oauth/access_token".to_string(),
                 scope: vec![
@@ -80,7 +82,7 @@ impl DefaultOAuthService {
             ServiceType::Google => OAuth2Config {
                 client_id: String::new(),
                 client_secret: String::new(),
-                redirect_uri: "http://localhost:1420/oauth/callback".to_string(),
+                redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
                 token_url: "https://oauth2.googleapis.com/token".to_string(),
                 scope: vec![
@@ -95,7 +97,7 @@ impl DefaultOAuthService {
             ServiceType::Microsoft => OAuth2Config {
                 client_id: String::new(),
                 client_secret: String::new(),
-                redirect_uri: "http://localhost:1420/oauth/callback".to_string(),
+                redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
                     .to_string(),
                 token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token".to_string(),
@@ -111,7 +113,7 @@ impl DefaultOAuthService {
             ServiceType::Gitlab => OAuth2Config {
                 client_id: String::new(),
                 client_secret: String::new(),
-                redirect_uri: "http://localhost:1420/oauth/callback".to_string(),
+                redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://gitlab.com/oauth/authorize".to_string(),
                 token_url: "https://gitlab.com/oauth/token".to_string(),
                 scope: vec!["api".to_string(), "read_user".to_string()],
@@ -122,7 +124,7 @@ impl DefaultOAuthService {
             ServiceType::LinkedIn => OAuth2Config {
                 client_id: String::new(),
                 client_secret: String::new(),
-                redirect_uri: "http://localhost:1420/oauth/callback".to_string(),
+                redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://www.linkedin.com/oauth/v2/authorization".to_string(),
                 token_url: "https://www.linkedin.com/oauth/v2/accessToken".to_string(),
                 scope: vec![
