@@ -34,7 +34,7 @@ use presentation::{
 use std::sync::Arc;
 
 // Service Config Commands
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn create_service_config(
     state: tauri::State<'_, ServiceConfigController>,
     request_json: String,
@@ -51,7 +51,7 @@ async fn create_service_config(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn get_service_config(
     state: tauri::State<'_, ServiceConfigController>,
     id: String,
@@ -59,14 +59,14 @@ async fn get_service_config(
     state.get_service_config(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn get_all_service_configs(
     state: tauri::State<'_, ServiceConfigController>,
 ) -> Result<ServiceConfigListResponse, ServiceConfigError> {
     state.get_all_service_configs().await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn update_auth_config(
     state: tauri::State<'_, ServiceConfigController>,
     id: String,
@@ -84,7 +84,7 @@ async fn update_auth_config(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn enable_service(
     state: tauri::State<'_, ServiceConfigController>,
     id: String,
@@ -92,7 +92,7 @@ async fn enable_service(
     state.enable_service(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn disable_service(
     state: tauri::State<'_, ServiceConfigController>,
     id: String,
@@ -109,7 +109,7 @@ async fn delete_service_config(
 }
 
 // Notification Commands
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn create_notification(
     state: tauri::State<'_, NotificationController>,
     request_json: String,
@@ -126,7 +126,7 @@ async fn create_notification(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn get_notification(
     state: tauri::State<'_, NotificationController>,
     id: String,
@@ -134,7 +134,7 @@ async fn get_notification(
     state.get_notification(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn get_all_notifications(
     state: tauri::State<'_, NotificationController>,
     filter_json: Option<String>,
@@ -159,7 +159,7 @@ async fn get_all_notifications(
     }
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn mark_as_read(
     state: tauri::State<'_, NotificationController>,
     id: String,
@@ -167,7 +167,7 @@ async fn mark_as_read(
     state.mark_as_read(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn mark_action_required(
     state: tauri::State<'_, NotificationController>,
     id: String,
@@ -175,7 +175,7 @@ async fn mark_action_required(
     state.mark_action_required(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn mark_action_taken(
     state: tauri::State<'_, NotificationController>,
     id: String,
@@ -183,7 +183,7 @@ async fn mark_action_taken(
     state.mark_action_taken(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn archive_notification(
     state: tauri::State<'_, NotificationController>,
     id: String,
@@ -191,7 +191,7 @@ async fn archive_notification(
     state.archive_notification(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn delete_notification(
     state: tauri::State<'_, NotificationController>,
     id: String,
@@ -199,7 +199,7 @@ async fn delete_notification(
     state.delete_notification(id).await
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn mark_all_notifications_read(
     state: tauri::State<'_, NotificationController>,
 ) -> Result<(), NotificationError> {
@@ -210,7 +210,7 @@ async fn mark_all_notifications_read(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn archive_all_read_notifications(
     state: tauri::State<'_, NotificationController>,
 ) -> Result<(), NotificationError> {
