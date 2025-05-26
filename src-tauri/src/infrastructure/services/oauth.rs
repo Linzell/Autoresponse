@@ -62,6 +62,7 @@ impl DefaultOAuthService {
         }
     }
 
+    #[allow(dead_code)]
     fn get_default_oauth_config(&self, service_type: ServiceType) -> OAuth2Config {
         match service_type {
             ServiceType::Github => OAuth2Config {
