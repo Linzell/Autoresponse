@@ -1,7 +1,10 @@
 use autoresponse_lib::domain::error::DomainResult;
 use autoresponse_lib::domain::{
     error::DomainError,
-    services::{BackgroundJobManager, Job, JobHandler, JobPriority, JobStatus, JobType},
+    services::{
+        background::manager::BackgroundJobManagerTrait, BackgroundJobManager, Job, JobHandler,
+        JobPriority, JobStatus, JobType,
+    },
 };
 use parking_lot::Mutex;
 use std::{sync::Arc, time::Duration};
