@@ -2,6 +2,7 @@ pub mod actions;
 pub mod ai;
 pub mod background;
 pub mod notification_service;
+pub mod search;
 pub mod service_config_service;
 
 pub use actions::executor::{ActionExecutor, ActionExecutorTrait, DynActionExecutor};
@@ -28,3 +29,6 @@ pub use service_config_service::MockServiceConfigService;
 
 #[cfg(test)]
 pub use ai::MockAIService;
+
+#[cfg(test)]
+pub use search::MockSearchService;

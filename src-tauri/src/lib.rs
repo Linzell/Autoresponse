@@ -6,7 +6,8 @@ pub mod presentation;
 #[cfg(test)]
 pub mod test_utils;
 
-use application::{NotificationUseCases, ServiceConfigUseCases};
+use application::{use_cases::MCPServerUseCases, NotificationUseCases, ServiceConfigUseCases};
+use tracing::info;
 use commands::oauth::{
     delete_oauth_service_config, get_service_configs, handle_oauth_callback, save_oauth_config,
     start_oauth_flow,
@@ -14,7 +15,7 @@ use commands::oauth::{
 use domain::{
     services::{
         actions::ActionExecutor,
-        ai::{AIConfig, OllamaService},
+        ai::{AIConfig, MCPConfig, OllamaService},
         background::BackgroundJobManager,
         DefaultNotificationService, DefaultServiceConfigService, NotificationService,
         ServiceConfigService,
@@ -235,7 +236,7 @@ async fn archive_all_read_notifications(
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app_dir = directories::ProjectDirs::from("com", "autoresponse", "app")
         .expect("Failed to get project directories")
         .data_dir()
@@ -266,7 +267,19 @@ pub fn run() {
 
     // Initialize AI service
     let ai_config = AIConfig::default();
-    let ai_service = Arc::new(OllamaService::new(ai_config));
+    let ai_service = Arc::new(OllamaService::new(ai_config.clone()));
+
+    // Initialize MCP server
+    let mcp_use_cases = Arc::new(MCPServerUseCases::new(
+        job_manager.clone(),
+        ai_service.clone(),
+    ));
+    let mcp_config = MCPConfig::default();
+    let mcp_job_id = mcp_use_cases
+        .start_mcp_server(mcp_config)
+        .await
+        .expect("Failed to start MCP server");
+    info!("MCP server started with job ID: {}", mcp_job_id);
 
     // Initialize action executor
     let action_executor = Arc::new(ActionExecutor::new());
@@ -295,6 +308,7 @@ pub fn run() {
         .manage(notification_controller)
         .manage(service_config_use_cases)
         .manage(notification_use_cases)
+        .manage(mcp_use_cases)
         .manage(service_config_repository.clone() as Arc<dyn ServiceConfigRepository>)
         .manage(oauth_service as Arc<dyn OAuthService>)
         .invoke_handler(tauri::generate_handler![
@@ -325,5 +339,6 @@ pub fn run() {
             archive_all_read_notifications,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+    Ok(())
 }

@@ -153,6 +153,11 @@ impl From<crate::domain::error::DomainError> for NotificationError {
                 message: msg,
                 details: vec![],
             },
+            crate::domain::error::DomainError::ConfigurationError(msg) => Self {
+                code: "CONFIGURATION_ERROR".to_string(),
+                message: msg,
+                details: vec![],
+            },
         }
     }
 }

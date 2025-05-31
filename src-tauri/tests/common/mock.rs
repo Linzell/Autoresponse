@@ -6,6 +6,7 @@ use autoresponse_lib::domain::{
     error::DomainResult,
     services::{
         ai::{AIAnalysis, AIService, PriorityLevel},
+        search::SearchResult,
         NotificationService, ServiceConfigService,
     },
 };
@@ -51,6 +52,7 @@ impl MockNotificationService {
 }
 
 mockall::mock! {
+    #[derive(Debug)]
     pub AIService {}
 
     #[async_trait::async_trait]
@@ -99,5 +101,29 @@ mockall::mock! {
         async fn disable_service(&self, id: Uuid) -> DomainResult<()>;
         async fn delete_service_config(&self, id: Uuid) -> DomainResult<()>;
         async fn update_last_sync(&self, id: Uuid) -> DomainResult<()>;
+    }
+}
+
+mockall::mock! {
+    #[derive(Debug)]
+    pub SearchService {}
+
+    #[async_trait::async_trait]
+    impl autoresponse_lib::domain::services::search::SearchService for SearchService {
+        async fn search(&self, query: &str) -> DomainResult<Vec<SearchResult>>;
+    }
+}
+
+impl MockSearchService {
+    pub fn new_with_defaults() -> Self {
+        let mut mock = Self::new();
+        mock.expect_search().returning(|_| {
+            Ok(vec![SearchResult {
+                title: "Test Result".to_string(),
+                description: "Test Description".to_string(),
+                url: "http://test.com".to_string(),
+            }])
+        });
+        mock
     }
 }
