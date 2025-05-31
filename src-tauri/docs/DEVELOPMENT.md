@@ -165,7 +165,9 @@ impl ExampleController {
 }
 ```
 
-### 2. Testing Pattern
+### 2. Testing Patterns
+
+#### a. Service Testing Pattern
 
 ```rust
 #[cfg(test)]
@@ -203,6 +205,59 @@ mod tests {
 }
 ```
 
+#### b. MCP Server Testing Pattern
+
+```rust
+struct TestContext {
+    ai_service: DynAIService,
+    search_service: Arc<dyn SearchService>,
+    mock_server: Option<MockServer>,
+    server_port: u16,
+}
+
+#[tokio::test]
+async fn test_mcp_server_endpoint() -> DomainResult<()> {
+    // 1. Set up test context
+    let ctx = TestContext::new().await;
+    let server_config = ctx.get_server_config();
+
+    // 2. Configure mock responses
+    let mock_server = ctx.mock_server.as_ref().unwrap();
+    Mock::given(method("POST"))
+        .and(path("/api/endpoint"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(expected_response))
+        .mount(mock_server)
+        .await;
+
+    // 3. Create and start server
+    let server = MCPServer::new(
+        server_config.clone(),
+        ctx.ai_service.clone(),
+        ctx.search_service.clone(),
+    );
+    let server_handle = tokio::spawn(async move {
+        server.start().await.unwrap();
+    });
+
+    // 4. Send test request
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("http://{}:{}/api/endpoint", host, port))
+        .json(&test_request)
+        .send()
+        .await?;
+
+    // 5. Verify response
+    assert_eq!(response.status(), 200);
+    let body: MCPResponse<T> = response.json().await?;
+    assert!(body.success);
+
+    // 6. Clean up
+    server_handle.abort();
+    Ok(())
+}
+```
+
 ## Adding New Features
 
 1. **Domain First Approach**
@@ -232,12 +287,18 @@ mod tests {
    - Use mocks for dependencies
    - Cover error cases and edge scenarios
    - Aim for 100% coverage
+   - Follow DRY principle with test utilities and fixtures
+   - Use descriptive test names that indicate scenario and expected outcome
 
 2. **Integration Tests**
    - Test complete workflows
-   - Use test databases
+   - Use test databases and mock servers
    - Cover primary use cases
    - Test error handling
+   - Implement proper test context management
+   - Use TestContext pattern for complex service testing
+   - Handle async operations and cleanup properly
+   - Test both success and failure scenarios
 
 3. **Test Structure**
    - Arrange: Set up test data and mocks

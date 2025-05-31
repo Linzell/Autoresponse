@@ -7,6 +7,7 @@ This document provides comprehensive documentation for frontend developers integ
 - [Authentication](#authentication)
 - [Service Configuration](#service-configuration)
 - [Notifications](#notifications)
+- [MCP Server](#mcp-server)
 - [Error Handling](#error-handling)
 - [Types & Interfaces](#types-and-interfaces)
 
@@ -141,6 +142,84 @@ await invoke('mark_all_notifications_read');
 
 // Archive all read notifications
 await invoke('archive_all_read_notifications');
+```
+
+## MCP Server
+
+The Message Control Protocol (MCP) server provides unified access to various services through REST endpoints.
+
+### Health Check
+```typescript
+GET /health
+Response: {
+  "success": true,
+  "response": "MCP Server is running",
+  "error": null
+}
+```
+
+### Content Analysis
+```typescript
+POST /api/analyze
+Request: {
+  "content": string,
+  "api_key": string,
+  "service_type": "analyze"
+}
+Response: {
+  "success": true,
+  "response": {
+    "requires_action": boolean,
+    "priority_level": "High" | "Medium" | "Low",
+    "summary": string,
+    "suggested_actions": string[]
+  },
+  "error": null
+}
+```
+
+### Response Generation
+```typescript
+POST /api/generate
+Request: {
+  "content": string,
+  "api_key": string,
+  "service_type": "generate"
+}
+Response: {
+  "success": true,
+  "response": string,
+  "error": null
+}
+```
+
+### Web Search
+```typescript
+POST /api/search
+Request: {
+  "query": string,
+  "api_key": string
+}
+Response: {
+  "success": true,
+  "response": [
+    {
+      "title": string,
+      "description": string,
+      "url": string
+    }
+  ],
+  "error": null
+}
+```
+
+All MCP server endpoints require authentication via API key and return responses in a standardized format:
+```typescript
+interface MCPResponse<T> {
+  success: boolean;
+  response?: T;
+  error?: string;
+}
 ```
 
 ## Error Handling
