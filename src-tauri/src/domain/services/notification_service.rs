@@ -233,7 +233,9 @@ mod tests {
     use crate::domain::services::actions::executor::MockActionExecutor;
     use crate::domain::services::actions::ActionExecutor;
     use crate::domain::services::ai::{AIAnalysis, MockAIService, PriorityLevel};
-    use crate::domain::services::background::NotificationProcessor;
+    use crate::domain::services::background::{
+        manager::BackgroundJobManagerTrait, NotificationProcessor,
+    };
     use crate::domain::services::BackgroundJobManager;
     use async_trait::async_trait;
     use mockall::mock;
