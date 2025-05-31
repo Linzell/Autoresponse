@@ -225,7 +225,11 @@ impl AIService for OllamaService {
 
         let custom_instructions = prefs.custom_instructions.join("\n");
 
-        let conversation_history = self.memory.lock().unwrap().get_context();
+        let conversation_history = self
+            .memory
+            .lock()
+            .expect("Failed to acquire lock on memory for conversation history")
+            .get_context();
         let prompt = format!(
             "Generate a response for the following context, adhering to these specifications:\n\
             Tone: {}\n\
