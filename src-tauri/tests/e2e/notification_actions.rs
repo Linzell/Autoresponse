@@ -10,7 +10,9 @@ use autoresponse_lib::{
         services::{
             actions::executor::{ActionExecutor, DynActionExecutor},
             ai::{AIAnalysis, PriorityLevel},
-            background::{BackgroundJobManager, Job, JobHandler, JobType},
+            background::{
+                manager::BackgroundJobManagerTrait, BackgroundJobManager, Job, JobHandler, JobType,
+            },
             notification_service::{DefaultNotificationService, NotificationService},
         },
     },

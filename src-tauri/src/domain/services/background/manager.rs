@@ -32,31 +32,6 @@ impl Default for BackgroundJobManager {
 #[async_trait]
 impl BackgroundJobManagerTrait for BackgroundJobManager {
     async fn register_handler(&self, handler: Arc<dyn JobHandler>) -> Result<(), DomainError> {
-        self.register_handler(handler).await
-    }
-
-    async fn submit_job(&self, job: Job) -> Result<uuid::Uuid, DomainError> {
-        self.submit_job(job).await
-    }
-
-    async fn get_job_status(&self, job_id: uuid::Uuid) -> Option<JobStatus> {
-        self.get_job_status(job_id).await
-    }
-
-    async fn cancel_job(&self, job_id: uuid::Uuid) -> Result<(), DomainError> {
-        self.cancel_job(job_id).await
-    }
-}
-
-impl BackgroundJobManager {
-    pub fn new() -> Self {
-        Self {
-            handlers: Arc::new(RwLock::new(HashMap::new())),
-            active_jobs: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub async fn register_handler(&self, handler: Arc<dyn JobHandler>) -> Result<(), DomainError> {
         let job_type = handler.job_type();
         let mut handlers = self.handlers.write().await;
 
@@ -71,7 +46,7 @@ impl BackgroundJobManager {
         Ok(())
     }
 
-    pub async fn submit_job(&self, job: Job) -> Result<uuid::Uuid, DomainError> {
+    async fn submit_job(&self, job: Job) -> Result<uuid::Uuid, DomainError> {
         let handlers = self.handlers.read().await;
         if !handlers.contains_key(&job.metadata.job_type) {
             return Err(DomainError::ValidationError(format!(
@@ -95,6 +70,47 @@ impl BackgroundJobManager {
         });
 
         Ok(job_id)
+    }
+
+    async fn get_job_status(&self, job_id: uuid::Uuid) -> Option<JobStatus> {
+        let active_jobs = self.active_jobs.read().await;
+        if let Some(job) = active_jobs.get(&job_id) {
+            let job = job.read().await;
+            Some(job.status.clone())
+        } else {
+            None
+        }
+    }
+
+    async fn cancel_job(&self, job_id: uuid::Uuid) -> Result<(), DomainError> {
+        let active_jobs = self.active_jobs.read().await;
+
+        if let Some(job) = active_jobs.get(&job_id) {
+            let mut job = job.write().await;
+            if job.status == JobStatus::Running || job.status == JobStatus::Pending {
+                job.cancel();
+                Ok(())
+            } else {
+                Err(DomainError::ValidationError(format!(
+                    "Cannot cancel job {} in state {:?}",
+                    job_id, job.status
+                )))
+            }
+        } else {
+            Err(DomainError::NotFoundError(format!(
+                "Job {} not found",
+                job_id
+            )))
+        }
+    }
+}
+
+impl BackgroundJobManager {
+    pub fn new() -> Self {
+        Self {
+            handlers: Arc::new(RwLock::new(HashMap::new())),
+            active_jobs: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 
     async fn process_job(
@@ -163,38 +179,6 @@ impl BackgroundJobManager {
                     job_id
                 ),
             }
-        }
-    }
-
-    pub async fn get_job_status(&self, job_id: uuid::Uuid) -> Option<JobStatus> {
-        let active_jobs = self.active_jobs.read().await;
-        if let Some(job) = active_jobs.get(&job_id) {
-            let job = job.read().await;
-            Some(job.status.clone())
-        } else {
-            None
-        }
-    }
-
-    pub async fn cancel_job(&self, job_id: uuid::Uuid) -> Result<(), DomainError> {
-        let active_jobs = self.active_jobs.read().await;
-
-        if let Some(job) = active_jobs.get(&job_id) {
-            let mut job = job.write().await;
-            if job.status == JobStatus::Running || job.status == JobStatus::Pending {
-                job.cancel();
-                Ok(())
-            } else {
-                Err(DomainError::ValidationError(format!(
-                    "Cannot cancel job {} in state {:?}",
-                    job_id, job.status
-                )))
-            }
-        } else {
-            Err(DomainError::NotFoundError(format!(
-                "Job {} not found",
-                job_id
-            )))
         }
     }
 }
