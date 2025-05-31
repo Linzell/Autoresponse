@@ -1,20 +1,187 @@
-pub mod mcp_connector;
-pub mod services;
-pub mod types;
+use crate::domain::error::DomainResult;
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+use tokio::time::timeout;
 
-pub use mcp_connector::{DynMCPConnector, MCPConfig, MCPConnector};
-pub use services::ollama_service::OllamaService;
-pub use types::*;
+use super::super::{AIAnalysis, AIConfig, AIService};
 
-#[cfg(test)]
-pub use types::MockAIService;
+#[derive(Debug, Serialize)]
+struct OllamaRequest {
+    model: String,
+    prompt: String,
+    stream: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaResponse {
+    response: String,
+    #[allow(dead_code)]
+    done: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationEntry {
+    pub timestamp: DateTime<Utc>,
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug)]
+pub struct ConversationMemory {
+    pub entries: VecDeque<ConversationEntry>,
+    pub max_entries: usize,
+}
+
+impl ConversationMemory {
+    pub fn new(max_entries: usize) -> Self {
+        Self {
+            entries: VecDeque::with_capacity(max_entries),
+            max_entries,
+        }
+    }
+
+    pub fn add_entry(&mut self, role: String, content: String) {
+        if self.entries.len() >= self.max_entries {
+            self.entries.pop_front();
+        }
+        self.entries.push_back(ConversationEntry {
+            timestamp: Utc::now(),
+            role,
+            content,
+        });
+    }
+
+    pub fn get_context(&self) -> String {
+        self.entries
+            .iter()
+            .map(|entry| format!("{}({}): {}", entry.role, entry.timestamp, entry.content))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+#[derive(Debug)]
+pub struct OllamaService {
+    pub config: AIConfig,
+    pub client: Client,
+    pub memory: Arc<Mutex<ConversationMemory>>,
+}
+
+impl OllamaService {
+    pub fn new(config: AIConfig) -> Self {
+        Self {
+            config,
+            client: Client::new(),
+            memory: Arc::new(Mutex::new(ConversationMemory::new(10))),
+        }
+    }
+
+    async fn send_prompt(&self, prompt: &str) -> DomainResult<String> {
+        let request = OllamaRequest {
+            model: self.config.model.clone(),
+            prompt: prompt.to_string(),
+            stream: false,
+        };
+
+        let response = timeout(
+            Duration::from_secs(self.config.timeout_seconds),
+            self.client
+                .post(format!("{}/api/generate", self.config.base_url))
+                .json(&request)
+                .send(),
+        )
+        .await
+        .map_err(|e| {
+            DomainError::ExternalServiceError(format!("AI service request timed out: {}", e))
+        })??;
+
+        let ollama_response: OllamaResponse = response.json().await.map_err(|e| {
+            DomainError::ExternalServiceError(format!("Failed to parse AI response: {}", e))
+        })?;
+
+        Ok(ollama_response.response)
+    }
+}
+
+#[async_trait]
+impl AIService for OllamaService {
+    async fn analyze_content(&self, content: &str) -> DomainResult<AIAnalysis> {
+        let prompt = format!(
+            "Analyze the following content and provide a structured response with the following information:\n\
+            1. Does this require action? (true/false)\n\
+            2. Priority level (Low, Medium, High, Critical)\n\
+            3. Brief summary\n\
+            4. List of suggested actions\n\n\
+            Content: {}\n\n\
+            Respond in JSON format.",
+            content
+        );
+
+        let response = self.send_prompt(&prompt).await?;
+
+        serde_json::from_str(&response).map_err(|e| {
+            DomainError::ValidationError(format!("Failed to parse AI analysis: {}", e))
+        })
+    }
+
+    async fn generate_response(&self, context: &str) -> DomainResult<String> {
+        let prefs = &self.config.user_preferences;
+        let tone = format!("{:?}", prefs.tone).to_lowercase();
+        let length = format!("{:?}", prefs.length).to_lowercase();
+        let formality = format!("{:?}", prefs.formality_level).to_lowercase();
+
+        let custom_instructions = prefs.custom_instructions.join("\n");
+
+        let conversation_history = self
+            .memory
+            .lock()
+            .expect("Failed to acquire lock on memory for conversation history")
+            .get_context();
+        let prompt = format!(
+            "Generate a response for the following context, adhering to these specifications:\n\
+            Tone: {}\n\
+            Length: {}\n\
+            Language: {}\n\
+            Formality: {}\n\
+            Custom Instructions:\n{}\n\n\
+            Previous Conversation:\n{}\n\n\
+            Current Context:\n{}\n\n\
+            The response should be clear and actionable while maintaining consistency with previous interactions.",
+            tone, length, prefs.language, formality, custom_instructions, conversation_history, context
+        );
+
+        // Add user's message to memory first
+        self.memory
+            .lock()
+            .unwrap()
+            .add_entry("User".to_string(), context.to_string());
+
+        let response = self.send_prompt(&prompt).await?;
+        self.memory
+            .lock()
+            .unwrap()
+            .add_entry("Assistant".to_string(), response.clone());
+        Ok(response)
+    }
+}
+
+use crate::domain::error::DomainError;
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use crate::domain::services::ai::services::ollama_service::ConversationMemory;
-    use crate::domain::DomainError;
+    use crate::domain::services::ai::{
+        FormalityLevel, ResponseLength, ResponseTone, UserPreferences,
+    };
+    use crate::domain::services::PriorityLevel;
 
     use super::*;
     use tokio;

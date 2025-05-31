@@ -22,6 +22,9 @@ mod service_config_test;
 mod cached_repository_test;
 
 #[cfg(test)]
+mod mcp_server_test;
+
+#[cfg(test)]
 mod tests {
 
     #[test]
