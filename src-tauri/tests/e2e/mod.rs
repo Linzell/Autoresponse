@@ -12,7 +12,7 @@ static INIT: Once = Once::new();
 pub fn setup_test_env() {
     INIT.call_once(|| {
         // Create test .env file if it doesn't exist
-        if !fs::metadata(".env").is_ok() {
+        if fs::metadata(".env").is_err() {
             fs::write(
                 ".env",
                 "DATABASE_URL=postgres://test:test@localhost:5432/test",

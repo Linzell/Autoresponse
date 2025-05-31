@@ -435,7 +435,7 @@ mod tests {
         let processor = NotificationProcessor::new(
             service.clone(),
             repository.clone(),
-            Arc::new(NoopEventPublisher::default()),
+            Arc::new(NoopEventPublisher),
         );
         (repository, service, processor)
     }
