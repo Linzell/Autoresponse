@@ -4,17 +4,17 @@ use autoresponse_lib::domain::{
         NotificationStatus,
     },
     error::DomainResult,
-    services::{actions::ActionHandler, notification_service::NotificationService},
+    services::{actions::executor::ActionExecutorTrait, notification_service::NotificationService},
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Clone)]
-struct TestActionHandler {
+#[derive(Debug, Clone)]
+struct TestActionExecutor {
     handled_notifications: Arc<Mutex<Vec<Notification>>>,
 }
 
-impl TestActionHandler {
+impl TestActionExecutor {
     fn new() -> Self {
         Self {
             handled_notifications: Arc::new(Mutex::new(Vec::new())),
@@ -22,29 +22,51 @@ impl TestActionHandler {
     }
 }
 
-impl ActionHandler for TestActionHandler {
-    fn handle<'a>(
-        &'a self,
-        notification: &'a Notification,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DomainResult<()>> + Send + 'a>> {
-        Box::pin(async move {
-            self.handled_notifications
-                .lock()
-                .await
-                .push(notification.clone());
-            Ok(())
-        })
+#[async_trait::async_trait]
+impl ActionExecutorTrait for TestActionExecutor {
+    async fn execute(&self, notification: &Notification) -> DomainResult<()> {
+        tracing::debug!("Test executor handling notification: {}", notification.id);
+        self.handled_notifications
+            .lock()
+            .await
+            .push(notification.clone());
+        Ok(())
+    }
+
+    async fn handle_email(&self, _: &Notification) -> DomainResult<()> {
+        Ok(())
+    }
+    async fn handle_github(&self, _: &Notification) -> DomainResult<()> {
+        Ok(())
+    }
+    async fn handle_gitlab(&self, _: &Notification) -> DomainResult<()> {
+        Ok(())
+    }
+    async fn handle_jira(&self, _: &Notification) -> DomainResult<()> {
+        Ok(())
+    }
+    async fn handle_microsoft(&self, _: &Notification) -> DomainResult<()> {
+        Ok(())
+    }
+    async fn handle_google(&self, _: &Notification) -> DomainResult<()> {
+        Ok(())
+    }
+    async fn handle_linkedin(&self, _: &Notification) -> DomainResult<()> {
+        Ok(())
+    }
+    async fn handle_custom(&self, _: &Notification, _: &str) -> DomainResult<()> {
+        Ok(())
     }
 }
 
 struct TestNotificationService {
-    action_handler: TestActionHandler,
+    action_executor: Arc<TestActionExecutor>,
 }
 
 impl TestNotificationService {
     fn new() -> Self {
         Self {
-            action_handler: TestActionHandler::new(),
+            action_executor: Arc::new(TestActionExecutor::new()),
         }
     }
 }
@@ -52,7 +74,7 @@ impl TestNotificationService {
 #[async_trait::async_trait]
 impl NotificationService for TestNotificationService {
     async fn execute_action(&self, notification: &Notification) -> DomainResult<()> {
-        self.action_handler.handle(notification).await
+        self.action_executor.execute(notification).await
     }
 
     async fn create_notification(
@@ -139,7 +161,7 @@ async fn test_action_execution() {
     let result = service.execute_action(&notification).await;
     assert!(result.is_ok());
 
-    let handled = service.action_handler.handled_notifications.lock().await;
+    let handled = service.action_executor.handled_notifications.lock().await;
     assert_eq!(handled.len(), 1);
     assert_eq!(handled[0].id, notification.id);
 }
@@ -172,7 +194,7 @@ async fn test_multiple_action_sources() {
         assert!(result.is_ok());
     }
 
-    let handled = service.action_handler.handled_notifications.lock().await;
+    let handled = service.action_executor.handled_notifications.lock().await;
     assert_eq!(handled.len(), 3);
 }
 
@@ -215,6 +237,6 @@ async fn test_concurrent_action_execution() {
         assert!(result.is_ok());
     }
 
-    let handled = service.action_handler.handled_notifications.lock().await;
+    let handled = service.action_executor.handled_notifications.lock().await;
     assert_eq!(handled.len(), notifications.len());
 }

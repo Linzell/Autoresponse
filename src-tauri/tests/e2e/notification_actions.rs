@@ -1,3 +1,5 @@
+use crate::common::MockAIService;
+
 use super::setup_test_env;
 use autoresponse_lib::{
     domain::{
@@ -6,6 +8,8 @@ use autoresponse_lib::{
             NotificationStatus,
         },
         services::{
+            actions::executor::{ActionExecutor, DynActionExecutor},
+            ai::{AIAnalysis, PriorityLevel},
             background::{BackgroundJobManager, Job, JobHandler, JobType},
             notification_service::{DefaultNotificationService, NotificationService},
         },
@@ -47,9 +51,27 @@ async fn setup_test_service() -> Arc<dyn NotificationService> {
         .await
         .unwrap();
 
+    let action_executor: DynActionExecutor = Arc::new(ActionExecutor::new());
+
+    let mut mock_ai = MockAIService::new();
+    mock_ai.expect_analyze_content().returning(|content| {
+        let content_lower = content.to_lowercase();
+        Ok(AIAnalysis {
+            requires_action: content_lower.contains("action") || content_lower.contains("review"),
+            priority_level: PriorityLevel::High,
+            summary: "Test summary".to_string(),
+            suggested_actions: vec!["Test action".to_string()],
+        })
+    });
+    mock_ai
+        .expect_generate_response()
+        .returning(|_| Ok("Test response".to_string()));
+
     Arc::new(DefaultNotificationService::new(
         Arc::new(notification_repo),
         job_manager,
+        action_executor,
+        Arc::new(mock_ai),
     ))
 }
 

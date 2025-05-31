@@ -110,6 +110,11 @@ impl From<crate::domain::error::DomainError> for ServiceConfigError {
                 message: msg,
                 details: vec![],
             },
+            crate::domain::error::DomainError::ExternalServiceError(msg) => Self {
+                code: "EXTERNAL_SERVICE_ERROR".to_string(),
+                message: msg,
+                details: vec![],
+            },
         }
     }
 }
