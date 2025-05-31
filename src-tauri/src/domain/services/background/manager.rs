@@ -1,9 +1,21 @@
 use super::types::{Job, JobHandler, JobStatus, JobType};
 use crate::domain::error::DomainError;
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
+
+pub type DynBackgroundJobManager = Arc<dyn BackgroundJobManagerTrait>;
+
+#[async_trait]
+#[cfg_attr(test, mockall::automock)]
+pub trait BackgroundJobManagerTrait: Send + Sync {
+    async fn register_handler(&self, handler: Arc<dyn JobHandler>) -> Result<(), DomainError>;
+    async fn submit_job(&self, job: Job) -> Result<uuid::Uuid, DomainError>;
+    async fn get_job_status(&self, job_id: uuid::Uuid) -> Option<JobStatus>;
+    async fn cancel_job(&self, job_id: uuid::Uuid) -> Result<(), DomainError>;
+}
 
 #[derive(Debug)]
 pub struct BackgroundJobManager {
@@ -14,6 +26,25 @@ pub struct BackgroundJobManager {
 impl Default for BackgroundJobManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[async_trait]
+impl BackgroundJobManagerTrait for BackgroundJobManager {
+    async fn register_handler(&self, handler: Arc<dyn JobHandler>) -> Result<(), DomainError> {
+        self.register_handler(handler).await
+    }
+
+    async fn submit_job(&self, job: Job) -> Result<uuid::Uuid, DomainError> {
+        self.submit_job(job).await
+    }
+
+    async fn get_job_status(&self, job_id: uuid::Uuid) -> Option<JobStatus> {
+        self.get_job_status(job_id).await
+    }
+
+    async fn cancel_job(&self, job_id: uuid::Uuid) -> Result<(), DomainError> {
+        self.cancel_job(job_id).await
     }
 }
 

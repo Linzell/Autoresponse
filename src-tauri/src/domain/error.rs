@@ -25,6 +25,9 @@ pub enum DomainError {
 
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    #[error("External service error: {0}")]
+    ExternalServiceError(String),
 }
 
 pub type DomainResult<T> = Result<T, DomainError>;

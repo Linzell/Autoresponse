@@ -3,8 +3,12 @@ use crate::domain::{
     error::{DomainError, DomainResult},
     repositories::DynNotificationRepository,
     services::{
-        actions::ActionExecutor,
-        background::{BackgroundJobManager, Job, JobPriority, JobType},
+        actions::executor::DynActionExecutor,
+        ai::DynAIService,
+        background::{
+            manager::DynBackgroundJobManager,
+            types::{Job, JobPriority, JobType},
+        },
     },
     NotificationSource,
 };
@@ -51,19 +55,23 @@ pub trait NotificationService: Send + Sync {
 
 pub struct DefaultNotificationService {
     repository: DynNotificationRepository,
-    job_manager: Arc<BackgroundJobManager>,
-    action_executor: ActionExecutor,
+    job_manager: DynBackgroundJobManager,
+    action_executor: DynActionExecutor,
+    ai_service: DynAIService,
 }
 
 impl DefaultNotificationService {
     pub fn new(
         repository: DynNotificationRepository,
-        job_manager: Arc<BackgroundJobManager>,
+        job_manager: DynBackgroundJobManager,
+        action_executor: DynActionExecutor,
+        ai_service: DynAIService,
     ) -> Self {
         Self {
             repository,
             job_manager,
-            action_executor: ActionExecutor::new(),
+            action_executor,
+            ai_service,
         }
     }
 }
@@ -173,14 +181,11 @@ impl NotificationService for DefaultNotificationService {
         &self,
         notification: &Notification,
     ) -> DomainResult<bool> {
-        // TODO: Implement proper content analysis with AI
-        // For now, just check if content contains certain keywords
-        let content = notification.content.to_lowercase();
-        let action_keywords = ["urgent", "action", "required", "deadline", "review"];
-
-        Ok(action_keywords
-            .iter()
-            .any(|&keyword| content.contains(keyword)))
+        let analysis = self
+            .ai_service
+            .analyze_content(&notification.content)
+            .await?;
+        Ok(analysis.requires_action)
     }
 
     async fn generate_response(&self, notification: &Notification) -> DomainResult<String> {
@@ -225,7 +230,11 @@ mod tests {
     use crate::domain::entities::NotificationSource;
     use crate::domain::events::NoopEventPublisher;
     use crate::domain::repositories::NotificationRepository;
+    use crate::domain::services::actions::executor::MockActionExecutor;
+    use crate::domain::services::actions::ActionExecutor;
+    use crate::domain::services::ai::{AIAnalysis, MockAIService, PriorityLevel};
     use crate::domain::services::background::NotificationProcessor;
+    use crate::domain::services::BackgroundJobManager;
     use async_trait::async_trait;
     use mockall::mock;
     use std::collections::HashMap;
@@ -329,7 +338,12 @@ mod tests {
         ));
         job_manager.register_handler(processor).await.unwrap();
 
-        let service = DefaultNotificationService::new(repository, job_manager);
+        let service = DefaultNotificationService::new(
+            repository,
+            job_manager,
+            Arc::new(ActionExecutor::new()),
+            Arc::new(MockAIService::new()),
+        );
 
         // Create a notification
         let metadata = NotificationMetadata {
@@ -384,7 +398,26 @@ mod tests {
             notifications: Mutex::new(HashMap::new()),
         });
         let job_manager = Arc::new(BackgroundJobManager::new());
-        let service = DefaultNotificationService::new(repository, job_manager);
+
+        let mut mock_ai = MockAIService::new();
+        mock_ai.expect_analyze_content().returning(|content| {
+            Ok(AIAnalysis {
+                requires_action: content.to_lowercase().contains("urgent"),
+                priority_level: PriorityLevel::High,
+                summary: "Test summary".to_string(),
+                suggested_actions: vec!["Action 1".to_string()],
+            })
+        });
+
+        let mut mock_executor = MockActionExecutor::new();
+        mock_executor.expect_execute().returning(|_| Ok(()));
+
+        let service = DefaultNotificationService::new(
+            repository.clone(),
+            job_manager.clone(),
+            Arc::new(mock_executor),
+            Arc::new(mock_ai),
+        );
 
         let metadata = NotificationMetadata {
             source: NotificationSource::Email,
@@ -427,7 +460,12 @@ mod tests {
             notifications: Mutex::new(HashMap::new()),
         });
         let job_manager = Arc::new(BackgroundJobManager::new());
-        let service = DefaultNotificationService::new(repository, job_manager);
+        let service = DefaultNotificationService::new(
+            repository,
+            job_manager,
+            Arc::new(ActionExecutor::new()),
+            Arc::new(MockAIService::new()),
+        );
 
         // Test response generation for different sources
         let sources = vec![
@@ -480,7 +518,12 @@ mod tests {
             notifications: Mutex::new(HashMap::new()),
         });
         let job_manager = Arc::new(BackgroundJobManager::new());
-        let service = DefaultNotificationService::new(repository, job_manager);
+        let service = DefaultNotificationService::new(
+            repository,
+            job_manager,
+            Arc::new(ActionExecutor::new()),
+            Arc::new(MockAIService::new()),
+        );
 
         let metadata = NotificationMetadata {
             source: NotificationSource::Email,

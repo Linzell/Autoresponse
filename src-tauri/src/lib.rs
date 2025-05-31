@@ -13,8 +13,11 @@ use commands::oauth::{
 };
 use domain::{
     services::{
-        background::BackgroundJobManager, DefaultNotificationService, DefaultServiceConfigService,
-        NotificationService, ServiceConfigService,
+        actions::ActionExecutor,
+        ai::{AIConfig, OllamaService},
+        background::BackgroundJobManager,
+        DefaultNotificationService, DefaultServiceConfigService, NotificationService,
+        ServiceConfigService,
     },
     NotificationRepository, ServiceConfigRepository,
 };
@@ -261,9 +264,18 @@ pub fn run() {
         service_config_repository.clone(),
     )) as Arc<dyn ServiceConfigService>;
 
+    // Initialize AI service
+    let ai_config = AIConfig::default();
+    let ai_service = Arc::new(OllamaService::new(ai_config));
+
+    // Initialize action executor
+    let action_executor = Arc::new(ActionExecutor::new());
+
     let notification_service = Arc::new(DefaultNotificationService::new(
         notification_repository.clone(),
         job_manager.clone(),
+        action_executor,
+        ai_service,
     )) as Arc<dyn NotificationService>;
 
     // Initialize use cases
