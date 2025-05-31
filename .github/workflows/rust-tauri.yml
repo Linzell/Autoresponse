@@ -195,7 +195,7 @@ jobs:
         if: success() || failure() # Run even if fmt fails
         run: |
           # Run clippy with optimized settings
-          RUSTFLAGS="-D warnings" cargo clippy --all-features --all-targets
+          RUSTFLAGS="-D warnings" cargo clippy --no-deps --all-features --all-targets
 
       - name: Check documentation
         working-directory: src-tauri
