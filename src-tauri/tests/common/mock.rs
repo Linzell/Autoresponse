@@ -4,7 +4,10 @@ use autoresponse_lib::domain::{
         NotificationSource, NotificationStatus, ServiceConfig, ServiceEndpoints, ServiceType,
     },
     error::DomainResult,
-    services::{NotificationService, ServiceConfigService},
+    services::{
+        ai::{AIAnalysis, AIService, PriorityLevel},
+        NotificationService, ServiceConfigService,
+    },
 };
 use uuid::Uuid;
 
@@ -43,6 +46,33 @@ impl MockNotificationService {
         mock.expect_generate_response()
             .returning(|_| Ok("Test response".to_string()));
         mock.expect_execute_action().returning(|_| Ok(()));
+        mock
+    }
+}
+
+mockall::mock! {
+    pub AIService {}
+
+    #[async_trait::async_trait]
+    impl AIService for AIService {
+        async fn analyze_content(&self, content: &str) -> DomainResult<AIAnalysis>;
+        async fn generate_response(&self, context: &str) -> DomainResult<String>;
+    }
+}
+
+impl MockAIService {
+    pub fn new_with_defaults() -> Self {
+        let mut mock = Self::new();
+        mock.expect_analyze_content().returning(|_| {
+            Ok(AIAnalysis {
+                requires_action: true,
+                priority_level: PriorityLevel::Medium,
+                summary: "Test summary".to_string(),
+                suggested_actions: vec!["Test action".to_string()],
+            })
+        });
+        mock.expect_generate_response()
+            .returning(|_| Ok("Generated response".to_string()));
         mock
     }
 }
