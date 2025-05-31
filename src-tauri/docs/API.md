@@ -28,13 +28,10 @@ OAuth2 authentication is handled per service. Tokens are securely stored in the 
 ```typescript
 interface CreateServiceConfigRequest {
   name: string;
-  type: ServiceType;
-  authConfig: {
-    clientId: string;
-    clientSecret: string;
-    redirectUri?: string;
-    scopes?: string[];
-  };
+  serviceType: ServiceType;
+  authType: AuthType;
+  authConfig: AuthConfig;
+  endpoints: ServiceEndpoints;
 }
 
 // Usage
@@ -58,10 +55,7 @@ const configs = await invoke<ServiceConfigListResponse>('get_all_service_configs
 ### Update Auth Config
 ```typescript
 interface UpdateServiceAuthRequest {
-  clientId?: string;
-  clientSecret?: string;
-  redirectUri?: string;
-  scopes?: string[];
+  authConfig: AuthConfig;
 }
 
 await invoke('update_auth_config', {
@@ -88,9 +82,8 @@ await invoke('delete_service_config', { id: 'config-id' });
 interface CreateNotificationRequest {
   title: string;
   content: string;
-  source: string;
-  priority?: NotificationPriority;
-  tags?: string[];
+  priority: NotificationPriority;
+  metadata: NotificationMetadata;
 }
 
 const notification = await invoke<NotificationResponse>('create_notification', {
@@ -109,7 +102,7 @@ const notification = await invoke<NotificationResponse>('get_notification', {
 ```typescript
 interface NotificationFilterRequest {
   status?: NotificationStatus;
-  source?: string;
+  source?: NotificationSource;
   priority?: NotificationPriority;
   tags?: string[];
   fromDate?: string;
@@ -152,23 +145,7 @@ await invoke('archive_all_read_notifications');
 
 ## Error Handling
 
-### Error Types
-```typescript
-interface ValidationError {
-  message: string;
-  field?: string;
-}
-
-interface ServiceConfigError {
-  message: string;
-  code: string;
-}
-
-interface NotificationError {
-  message: string;
-  code: string;
-}
-```
+For error types and handling, please refer to the [shared types documentation](shared/types.md#error-types).
 
 ### Error Handling Example
 ```typescript
@@ -193,78 +170,18 @@ try {
 }
 ```
 
-## Types and Interfaces
+// Types & Interfaces
 
-### Service Types
-```typescript
-enum ServiceType {
-  EMAIL = 'EMAIL',
-  GIT_SERVICE = 'GIT_SERVICE',
-  MICROSOFT = 'MICROSOFT',
-  GOOGLE = 'GOOGLE',
-  JIRA = 'JIRA',
-  LINKEDIN = 'LINKEDIN',
-  CUSTOM = 'CUSTOM'
-}
-```
+All common types and interfaces are defined in [shared/types.md](shared/types.md). This includes:
 
-### Notification Types
-```typescript
-enum NotificationStatus {
-  UNREAD = 'UNREAD',
-  READ = 'READ',
-  ACTION_REQUIRED = 'ACTION_REQUIRED',
-  ACTION_TAKEN = 'ACTION_TAKEN',
-  ARCHIVED = 'ARCHIVED'
-}
+- Service Types (ServiceType, AuthType enums and interfaces)
+- Authentication Types (OAuth2Config, BasicAuthConfig, etc.)
+- Notification Types (NotificationStatus, NotificationPriority, NotificationSource enums)
+- Notification Metadata (NotificationMetadata interface)
+- Request Types (CreateServiceConfigRequest, UpdateServiceAuthRequest, etc.)
+- Response Types (ServiceConfigResponse, NotificationResponse, etc.)
+- Error Types
 
-enum NotificationPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT'
-}
-```
-
-### Response Types
-```typescript
-interface ServiceConfigResponse {
-  id: string;
-  name: string;
-  type: ServiceType;
-  enabled: boolean;
-  authConfig: {
-    clientId: string;
-    redirectUri?: string;
-    scopes?: string[];
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface NotificationResponse {
-  id: string;
-  title: string;
-  content: string;
-  source: string;
-  status: NotificationStatus;
-  priority: NotificationPriority;
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ServiceConfigListResponse {
-  configs: ServiceConfigResponse[];
-  total: number;
-}
-
-interface NotificationListResponse {
-  notifications: NotificationResponse[];
-  total: number;
-  page?: number;
-  perPage?: number;
-}
-```
+Please refer to the shared types documentation for detailed type definitions.
 
 For additional assistance or to report issues, please refer to the GitHub repository or contact the maintainers.

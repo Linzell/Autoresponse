@@ -7,6 +7,9 @@
 4. [Error Handling](#error-handling)
 5. [Types and Interfaces](#types-and-interfaces)
 6. [Integration Examples](#integration-examples)
+7. [Development Guide](#development-guide)
+
+> **Note**: For detailed implementation patterns and guidelines, please refer to [DEVELOPMENT.md](DEVELOPMENT.md)
 
 ## Architecture Overview
 
@@ -19,6 +22,8 @@ src-tauri/
 ├── infrastructure/ # External implementations (DB, APIs)
 └── presentation/   # Controllers and DTOs
 ```
+
+For detailed implementation patterns and best practices for each layer, see the [Development Guide](DEVELOPMENT.md#implementation-patterns).
 
 ### Key Components
 - **Controllers**: Handle command/query routing and validation
@@ -103,14 +108,7 @@ await invoke('delete_service_config', { id: string });
 
 #### Create Notification
 ```typescript
-interface CreateNotificationRequest {
-  title: string;
-  content: string;
-  source: string;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-  tags?: string[];
-  metadata?: Record<string, unknown>;
-}
+// See shared/types.md for CreateNotificationRequest interface
 
 await invoke('create_notification', {
   requestJson: JSON.stringify(request)
@@ -123,16 +121,7 @@ await invoke('create_notification', {
 await invoke('get_notification', { id: string });
 
 // Get All with Filtering
-interface NotificationFilterRequest {
-  status?: NotificationStatus;
-  source?: string;
-  priority?: NotificationPriority;
-  tags?: string[];
-  fromDate?: string;
-  toDate?: string;
-  page?: number;
-  perPage?: number;
-}
+// See shared/types.md for NotificationFilterRequest interface
 
 await invoke('get_all_notifications', {
   filterJson: JSON.stringify(filter)
@@ -170,22 +159,7 @@ await invoke('archive_all_read_notifications');
 
 ### Error Types
 
-```typescript
-interface ValidationError {
-  message: string;
-  field?: string;
-}
-
-interface ServiceConfigError {
-  message: string;
-  code: string;
-}
-
-interface NotificationError {
-  message: string;
-  code: string;
-}
-```
+For detailed error type definitions, please refer to the [shared types documentation](shared/types.md#error-types).
 
 ### Error Handling Example
 ```typescript
@@ -213,55 +187,20 @@ try {
 
 ## Types and Interfaces
 
-### Service Types
-```typescript
-type ServiceType = 
-  | 'EMAIL'
-  | 'GITHUB'
-  | 'GITLAB'
-  | 'MICROSOFT'
-  | 'GOOGLE'
-  | 'JIRA'
-  | 'LINKEDIN'
-  | 'CUSTOM';
+### Types and Interfaces
 
-interface ServiceConfig {
-  id: string;
-  name: string;
-  type: ServiceType;
-  enabled: boolean;
-  authConfig: AuthConfig;
-  createdAt: string;
-  updatedAt: string;
-}
-```
+All common types and interfaces are defined in the [shared types documentation](shared/types.md). This includes:
 
-### Notification Types
-```typescript
-type NotificationStatus = 
-  | 'UNREAD'
-  | 'READ'
-  | 'ACTION_REQUIRED'
-  | 'ACTION_TAKEN'
-  | 'ARCHIVED';
+- Service Types and Configurations
+- Notification Types and Statuses
+- Request/Response Types
+- Error Types and Handling
 
-type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH';
-
-interface Notification {
-  id: string;
-  title: string;
-  content: string;
-  source: string;
-  status: NotificationStatus;
-  priority: NotificationPriority;
-  tags: string[];
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-}
-```
+Please refer to the shared types documentation for detailed type definitions.
 
 ## Integration Examples
+
+> **Note**: For implementation patterns and best practices when adding new features, see the [Development Guide](DEVELOPMENT.md#adding-new-features).
 
 ### Service Configuration Flow
 ```typescript
@@ -289,29 +228,12 @@ const createServiceConfig = async () => {
   }
 };
 
-// 2. Update auth after OAuth flow
-const updateAuthToken = async (serviceId: string, tokens: any) => {
-  const authUpdate: UpdateServiceAuthRequest = {
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-    tokenExpiry: tokens.expires_at
-  };
-
-  try {
-    await invoke('update_auth_config', {
-      id: serviceId,
-      requestJson: JSON.stringify(authUpdate)
-    });
-  } catch (error) {
-    console.error('Failed to update auth config:', error);
-    throw error;
-  }
-};
+// See DEVELOPMENT.md for comprehensive implementation patterns and error handling
 ```
 
 ### Notification Management Flow
 ```typescript
-// 1. Create notification
+// Example notification creation
 const createNotification = async () => {
   const notification: CreateNotificationRequest = {
     title: 'New Pull Request',
@@ -336,25 +258,16 @@ const createNotification = async () => {
   }
 };
 
-// 2. Get filtered notifications
-const getFilteredNotifications = async () => {
-  const filter: NotificationFilterRequest = {
-    status: 'UNREAD',
-    priority: 'HIGH',
-    tags: ['review'],
-    fromDate: '2024-01-01',
-    page: 1,
-    perPage: 20
-  };
-
-  try {
-    const response = await invoke('get_all_notifications', {
-      filterJson: JSON.stringify(filter)
-    });
-    return response;
-  } catch (error) {
-    console.error('Failed to get notifications:', error);
-    throw error;
-  }
-};
+// For more examples and best practices, refer to DEVELOPMENT.md
 ```
+
+## Development Guide
+
+For detailed information about:
+- Implementation patterns
+- Testing guidelines
+- Error handling
+- Best practices
+- Adding new features
+
+Please refer to the [Development Guide](DEVELOPMENT.md).
