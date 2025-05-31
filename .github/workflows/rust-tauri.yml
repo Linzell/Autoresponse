@@ -46,8 +46,9 @@ jobs:
           sudo apt update
           sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      # Primary cache with unique key per job
-      - name: Setup primary cache
+      # Check for existing build cache
+      - name: Check build cache
+        id: build-cache
         uses: actions/cache@v3
         with:
           path: |
@@ -55,15 +56,37 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ steps.cache-key.outputs.value }}-setup
+          key: ${{ steps.cache-key.outputs.value }}-build
           restore-keys: |
+            ${{ steps.cache-key.outputs.value }}-build
             ${{ steps.cache-key.outputs.value }}-
             ${{ runner.os }}-cargo-
 
-      # Initial cargo fetch to populate cache
+      # Only fetch and build if cache miss
       - name: Fetch dependencies
+        if: steps.build-cache.outputs.cache-hit != 'true'
         working-directory: src-tauri
         run: cargo fetch
+
+      - name: Build project
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        working-directory: src-tauri
+        run: cargo build --release
+
+      # Secondary cache with unique key per job
+      - name: Setup secondary cache
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ steps.cache-key.outputs.value }}-build
+          restore-keys: |
+            ${{ steps.cache-key.outputs.value }}-
+            ${{ runner.os }}-cargo-
 
   security:
     name: Security Audit
@@ -77,7 +100,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Restore cache
+      - name: Restore build cache
         uses: actions/cache@v3
         with:
           path: |
@@ -85,9 +108,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ needs.setup.outputs.cache-key }}-security
+          key: ${{ needs.setup.outputs.cache-key }}-build
           restore-keys: |
-            ${{ needs.setup.outputs.cache-key }}-setup
+            ${{ needs.setup.outputs.cache-key }}-build
             ${{ needs.setup.outputs.cache-key }}-
 
       - name: Install cargo-audit
@@ -121,7 +144,7 @@ jobs:
             target/
           key: ${{ needs.setup.outputs.cache-key }}-deps
           restore-keys: |
-            ${{ needs.setup.outputs.cache-key }}-setup
+            ${{ needs.setup.outputs.cache-key }}-build
             ${{ needs.setup.outputs.cache-key }}-
 
       - name: Check dependencies
@@ -159,7 +182,7 @@ jobs:
             target/
           key: ${{ needs.setup.outputs.cache-key }}-check
           restore-keys: |
-            ${{ needs.setup.outputs.cache-key }}-setup
+            ${{ needs.setup.outputs.cache-key }}-build
             ${{ needs.setup.outputs.cache-key }}-
 
       # Run checks in parallel for better performance
@@ -218,7 +241,7 @@ jobs:
             target/
           key: ${{ needs.setup.outputs.cache-key }}-test
           restore-keys: |
-            ${{ needs.setup.outputs.cache-key }}-setup
+            ${{ needs.setup.outputs.cache-key }}-build
             ${{ needs.setup.outputs.cache-key }}-
 
       # Split test execution
