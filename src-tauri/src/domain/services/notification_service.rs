@@ -336,7 +336,7 @@ mod tests {
         let processor = Arc::new(NotificationProcessor::new(
             notification_service.clone(),
             repository.clone(),
-            Arc::new(NoopEventPublisher::default()),
+            Arc::new(NoopEventPublisher),
         ));
         job_manager.register_handler(processor).await.unwrap();
 

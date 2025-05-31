@@ -133,6 +133,8 @@ impl AIService for OllamaService {
 
 pub type DynAIService = Arc<dyn AIService>;
 
+use crate::domain::error::DomainError;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,5 +176,3 @@ mod tests {
         assert_eq!(analysis.suggested_actions.len(), 3);
     }
 }
-
-use crate::domain::error::DomainError;

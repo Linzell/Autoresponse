@@ -9,7 +9,7 @@ use tauri::Manager;
 use uuid::Uuid;
 
 thread_local! {
-    static TEST_APP: RefCell<Option<tauri::App<tauri::test::MockRuntime>>> = RefCell::new(None);
+    static TEST_APP: RefCell<Option<tauri::App<tauri::test::MockRuntime>>> = const { RefCell::new(None) };
 }
 
 pub fn create_test_state<T: ?Sized + Send + Sync + 'static>(

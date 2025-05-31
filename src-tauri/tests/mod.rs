@@ -26,7 +26,7 @@ macro_rules! async_test {
     ($name:ident, $body:expr) => {
         #[tokio::test]
         async fn $name() -> anyhow::Result<()> {
-            crate::common::init();
+            $crate::common::init();
             $body.await
         }
     };
@@ -37,7 +37,7 @@ macro_rules! test_case {
     ($name:ident, $body:expr) => {
         #[test]
         fn $name() -> anyhow::Result<()> {
-            crate::common::init();
+            $crate::common::init();
             $body
         }
     };

@@ -186,7 +186,7 @@ async fn test_event_error_handling() -> Result<(), DomainError> {
 
 #[tokio::test]
 async fn test_noop_event_publisher() -> Result<(), DomainError> {
-    let publisher = NoopEventPublisher::default();
+    let publisher = NoopEventPublisher;
     let notification_id = Uuid::new_v4();
     let event = NotificationEvent::notification_read(notification_id);
 
