@@ -1,7 +1,8 @@
 use crate::domain::{
-    entities::{AuthConfig, AuthType, ServiceConfig, ServiceEndpoints, ServiceType},
+    entities::{AuthConfig, ServiceConfig, ServiceEndpoints, ServiceType},
     error::{DomainError, DomainResult},
     repositories::DynServiceConfigRepository,
+    AuthType,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -9,6 +10,8 @@ use uuid::Uuid;
 
 #[cfg(test)]
 use mockall::automock;
+
+use super::integrations::service_bridge::ServiceBridge;
 
 #[cfg_attr(test, automock)]
 #[async_trait]
@@ -38,11 +41,20 @@ pub trait ServiceConfigService: Send + Sync {
 
 pub struct DefaultServiceConfigService {
     repository: DynServiceConfigRepository,
+    service_bridge: Option<Arc<ServiceBridge>>,
 }
 
 impl DefaultServiceConfigService {
     pub fn new(repository: DynServiceConfigRepository) -> Self {
-        Self { repository }
+        Self {
+            repository,
+            service_bridge: None,
+        }
+    }
+
+    pub fn with_service_bridge(mut self, service_bridge: Arc<ServiceBridge>) -> Self {
+        self.service_bridge = Some(service_bridge);
+        self
     }
 }
 
@@ -58,6 +70,14 @@ impl ServiceConfigService for DefaultServiceConfigService {
     ) -> DomainResult<ServiceConfig> {
         let mut config = ServiceConfig::new(name, service_type, auth_type, auth_config, endpoints);
         self.repository.save(&mut config).await?;
+
+        // Initialize service in bridge if available
+        if let Some(bridge) = &self.service_bridge {
+            if let Err(e) = bridge.initialize_service(config.clone()).await {
+                log::warn!("Failed to initialize service in bridge: {}", e);
+            }
+        }
+
         Ok(config)
     }
 
@@ -85,7 +105,26 @@ impl ServiceConfigService for DefaultServiceConfigService {
     async fn update_auth_config(&self, id: Uuid, auth_config: AuthConfig) -> DomainResult<()> {
         // Verify the service exists first
         self.get_service_config(id).await?;
-        self.repository.update_auth_config(id, auth_config).await
+        let result = self
+            .repository
+            .update_auth_config(id, auth_config.clone())
+            .await;
+
+        // Update service in bridge if available
+        if result.is_ok() {
+            if let Some(bridge) = &self.service_bridge {
+                if let Ok(config) = self.repository.find_by_id(id).await {
+                    if let Some(mut updated_config) = config {
+                        updated_config.auth_config = auth_config;
+                        if let Err(e) = bridge.initialize_service(updated_config).await {
+                            log::warn!("Failed to update service auth in bridge: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+
+        result
     }
 
     async fn enable_service(&self, id: Uuid) -> DomainResult<()> {

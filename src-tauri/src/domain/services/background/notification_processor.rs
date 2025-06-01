@@ -262,7 +262,7 @@ mod tests {
     const TEST_CONTENT: &str = "Test Content";
     const TEST_RESPONSE: &str = "Test Response";
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     struct TestNotificationRepository {
         notifications: Mutex<HashMap<Uuid, Notification>>,
     }
@@ -330,7 +330,7 @@ mod tests {
         }
     }
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     struct TestNotificationService {}
 
     #[async_trait]

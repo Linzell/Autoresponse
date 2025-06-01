@@ -17,10 +17,12 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct SqliteNotificationRepository {
     connection: Arc<Mutex<Connection>>,
 }
 
+#[derive(Debug)]
 pub struct CachedSqliteNotificationRepository {
     inner: CachedRepository<Notification, SqliteNotificationRepository>,
     base_repo: Arc<SqliteNotificationRepository>,
