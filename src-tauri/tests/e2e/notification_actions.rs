@@ -26,8 +26,9 @@ use tokio;
 #[derive(Debug)]
 struct TestJobHandler;
 
+#[async_trait::async_trait]
 impl JobHandler for TestJobHandler {
-    fn handle(&self, _job: &mut Job) -> Result<(), String> {
+    async fn handle(&self, _job: &mut Job) -> Result<(), String> {
         Ok(())
     }
 

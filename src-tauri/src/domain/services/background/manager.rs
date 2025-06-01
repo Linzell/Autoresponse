@@ -139,7 +139,7 @@ impl BackgroundJobManager {
 
         // Process the job with minimal lock time
         let mut job_inner = job.write().await;
-        let result = handler.handle(&mut job_inner);
+        let result = handler.handle(&mut job_inner).await;
         let status = match &result {
             Ok(()) => {
                 let elapsed = start_time.elapsed();
@@ -191,10 +191,11 @@ mod tests {
     #[derive(Debug)]
     struct TestHandler;
 
+    #[async_trait::async_trait]
     impl JobHandler for TestHandler {
-        fn handle(&self, job: &mut Job) -> Result<(), String> {
+        async fn handle(&self, job: &mut Job) -> Result<(), String> {
             // Minimal delay to avoid busy waiting
-            std::thread::sleep(std::time::Duration::from_micros(100));
+            tokio::time::sleep(std::time::Duration::from_micros(100)).await;
             job.complete();
             Ok(())
         }

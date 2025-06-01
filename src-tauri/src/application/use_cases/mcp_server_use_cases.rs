@@ -37,10 +37,8 @@ impl MCPServerUseCases {
     }
 
     pub fn create_mcp_connector(&self, config: MCPConfig) -> MCPConnector {
-        // Use the ai_service to initialize the connector with proper context
-        let connector = MCPConnector::new(config);
         // Test the connection immediately to ensure it's properly configured
-        connector
+        MCPConnector::new(config)
     }
 
     // Helper method to generate responses using the AI service
