@@ -95,6 +95,12 @@ pub struct JiraChangelogItem {
     pub to: Option<String>,
 }
 
+impl Default for JiraService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JiraService {
     pub fn new() -> Self {
         Self {
@@ -209,7 +215,7 @@ impl super::IntegrationService for JiraService {
         let base_url = self.get_base_url().await?;
         let response = self
             .client
-            .get(&format!("{}/rest/api/3/myself", base_url))
+            .get(format!("{}/rest/api/3/myself", base_url))
             .headers(headers)
             .send()
             .await
@@ -225,7 +231,7 @@ impl super::IntegrationService for JiraService {
         // Get all issues assigned to the current user or recently updated
         let issues_response: serde_json::Value = self
             .client
-            .get(&format!("{}/rest/api/3/search", base_url))
+            .get(format!("{}/rest/api/3/search", base_url))
             .headers(headers)
             .query(&[
                 ("jql", "assignee = currentUser() OR updated >= -24h"),

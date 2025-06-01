@@ -112,6 +112,12 @@ pub struct Location {
     pub postal_code: String,
 }
 
+impl Default for LinkedInService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LinkedInService {
     pub fn new() -> Self {
         Self {
@@ -180,7 +186,9 @@ impl LinkedInService {
     fn determine_priority(&self, event: &LinkedInEvent) -> NotificationPriority {
         match event.event_type.as_str() {
             "JOB_APPLICATION_UPDATE" => NotificationPriority::High,
-            "CONNECTION_REQUEST" | "JOB_RECOMMENDATION" | "MESSAGE_RECEIVED" => NotificationPriority::Medium,
+            "CONNECTION_REQUEST" | "JOB_RECOMMENDATION" | "MESSAGE_RECEIVED" => {
+                NotificationPriority::Medium
+            }
             _ => NotificationPriority::Low,
         }
     }
@@ -256,7 +264,9 @@ impl super::IntegrationService for LinkedInService {
                     event_type: "MESSAGE_RECEIVED".to_string(),
                     created_at: chrono::Utc::now().to_rfc3339(),
                     data: LinkedInEventData {
-                        message_details: Some(serde_json::from_value(message["messageDetails"].clone())?),
+                        message_details: Some(serde_json::from_value(
+                            message["messageDetails"].clone(),
+                        )?),
                         connection_details: None,
                         job_details: None,
                     },
@@ -368,7 +378,9 @@ impl super::IntegrationService for LinkedInService {
                     event_type: "CONNECTION_REQUEST".to_string(),
                     created_at: chrono::Utc::now().to_rfc3339(),
                     data: LinkedInEventData {
-                        connection_details: Some(serde_json::from_value(connection["invitation"].clone())?),
+                        connection_details: Some(serde_json::from_value(
+                            connection["invitation"].clone(),
+                        )?),
                         message_details: None,
                         job_details: None,
                     },
@@ -431,18 +443,24 @@ impl super::IntegrationService for LinkedInService {
                 (title, content)
             }
             "MESSAGE_RECEIVED" => {
-                let message = payload
-                    .get("messageDetails")
-                    .ok_or_else(|| DomainError::InvalidInput("Invalid message details".to_string()))?;
+                let message = payload.get("messageDetails").ok_or_else(|| {
+                    DomainError::InvalidInput("Invalid message details".to_string())
+                })?;
 
-                let sender = message
-                    .get("sender")
-                    .ok_or_else(|| DomainError::InvalidInput("Invalid sender in message details".to_string()))?;
+                let sender = message.get("sender").ok_or_else(|| {
+                    DomainError::InvalidInput("Invalid sender in message details".to_string())
+                })?;
 
                 let title = format!(
                     "Message from {} {}",
-                    sender.get("firstName").and_then(|f| f.as_str()).unwrap_or(""),
-                    sender.get("lastName").and_then(|l| l.as_str()).unwrap_or("")
+                    sender
+                        .get("firstName")
+                        .and_then(|f| f.as_str())
+                        .unwrap_or(""),
+                    sender
+                        .get("lastName")
+                        .and_then(|l| l.as_str())
+                        .unwrap_or("")
                 );
 
                 let content = message
@@ -454,13 +472,13 @@ impl super::IntegrationService for LinkedInService {
                 (title, content)
             }
             "CONNECTION_REQUEST" => {
-                let connection = payload
-                    .get("connectionDetails")
-                    .ok_or_else(|| DomainError::InvalidInput("Invalid connection details".to_string()))?;
+                let connection = payload.get("connectionDetails").ok_or_else(|| {
+                    DomainError::InvalidInput("Invalid connection details".to_string())
+                })?;
 
-                let profile = connection
-                    .get("profile")
-                    .ok_or_else(|| DomainError::InvalidInput("Invalid profile in connection details".to_string()))?;
+                let profile = connection.get("profile").ok_or_else(|| {
+                    DomainError::InvalidInput("Invalid profile in connection details".to_string())
+                })?;
 
                 let name = format!(
                     "{} {}",
@@ -694,7 +712,7 @@ mod tests {
         use wiremock::{self, Mock, MockServer, ResponseTemplate};
 
         // Initialize test logging
-        let _subscriber = tracing_subscriber::FmtSubscriber::builder()
+        tracing_subscriber::FmtSubscriber::builder()
             .with_max_level(tracing::Level::DEBUG)
             .with_test_writer()
             .init();
