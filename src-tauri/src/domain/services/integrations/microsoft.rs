@@ -100,6 +100,12 @@ pub struct MicrosoftTeamsUser {
     pub identity_type: String,
 }
 
+impl Default for MicrosoftService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MicrosoftService {
     pub fn new() -> Self {
         Self {
@@ -177,7 +183,6 @@ impl MicrosoftService {
             )
         };
 
-
         let response = self
             .client
             .get(&base_url)
@@ -198,7 +203,6 @@ impl MicrosoftService {
         let body = response.text().await.map_err(|e| {
             DomainError::ExternalServiceError(format!("Failed to read message details body: {}", e))
         })?;
-
 
         serde_json::from_str(&body).map_err(|e| {
             DomainError::ExternalServiceError(format!("Failed to parse message details: {}", e))
@@ -339,7 +343,6 @@ impl super::IntegrationService for MicrosoftService {
         // Fetch email messages
         let messages_url = format!("{}/me/messages", base_url);
 
-
         let response = self
             .client
             .get(&messages_url)
@@ -373,37 +376,33 @@ impl super::IntegrationService for MicrosoftService {
         // Process email messages
         if let Some(value) = messages.get("value").and_then(|v| v.as_array()) {
             for message in value {
-                match serde_json::from_value::<MicrosoftMessage>(message.clone()) {
-                    Ok(msg) => {
-                        // Create event directly from the message data we already have
-                        let notification = Notification {
-                            id: uuid::Uuid::new_v4(),
-                            title: msg.subject.clone().unwrap_or_default(),
-                            content: msg.body_preview.clone().unwrap_or_default(),
-                            created_at: DateTime::parse_from_rfc3339(&msg.received_date_time)
-                                .unwrap_or_else(|_| Utc::now().into())
-                                .into(),
-                            updated_at: Utc::now(),
-                            read_at: None,
-                            action_taken_at: None,
-                            priority: self.map_importance_to_priority(
-                                msg.importance.as_deref().unwrap_or(""),
-                            ),
-                            metadata: NotificationMetadata {
-                                source: NotificationSource::Microsoft,
-                                external_id: Some(msg.id.clone()),
-                                custom_data: Some(serde_json::json!({
-                                    "from_address": msg.from.as_ref().map(|f| f.email.address.clone()).unwrap_or_default(),
-                                    "from_name": msg.from.as_ref().map(|f| f.email.name.clone()).unwrap_or_default(),
-                                })),
-                                tags: Vec::new(),
-                                url: None,
-                            },
-                            status: NotificationStatus::New,
-                        };
-                        notifications.push(notification);
-                    }
-                    Err(_) => (),
+                if let Ok(msg) = serde_json::from_value::<MicrosoftMessage>(message.clone()) {
+                    // Create event directly from the message data we already have
+                    let notification = Notification {
+                        id: uuid::Uuid::new_v4(),
+                        title: msg.subject.clone().unwrap_or_default(),
+                        content: msg.body_preview.clone().unwrap_or_default(),
+                        created_at: DateTime::parse_from_rfc3339(&msg.received_date_time)
+                            .unwrap_or_else(|_| Utc::now().into())
+                            .into(),
+                        updated_at: Utc::now(),
+                        read_at: None,
+                        action_taken_at: None,
+                        priority: self
+                            .map_importance_to_priority(msg.importance.as_deref().unwrap_or("")),
+                        metadata: NotificationMetadata {
+                            source: NotificationSource::Microsoft,
+                            external_id: Some(msg.id.clone()),
+                            custom_data: Some(serde_json::json!({
+                                "from_address": msg.from.as_ref().map(|f| f.email.address.clone()).unwrap_or_default(),
+                                "from_name": msg.from.as_ref().map(|f| f.email.name.clone()).unwrap_or_default(),
+                            })),
+                            tags: Vec::new(),
+                            url: None,
+                        },
+                        status: NotificationStatus::New,
+                    };
+                    notifications.push(notification);
                 }
             }
         }
@@ -653,7 +652,6 @@ mod tests {
         // Start mock server
         let mock_server = MockServer::start().await;
 
-
         // Mock Microsoft Graph messages endpoint
         Mock::given(method("GET"))
             .and(path("/v1.0/me/messages"))
@@ -711,7 +709,6 @@ mod tests {
         // Create service instance with mocked base URL
         let service = MicrosoftService::new();
         let mock_uri = mock_server.uri();
-
 
         // Create service config with v1.0 API version in base URL
         let mut endpoints = serde_json::Map::new();

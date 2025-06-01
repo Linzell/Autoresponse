@@ -20,6 +20,12 @@ pub struct IntegrationManager {
     services: Arc<RwLock<HashMap<ServiceType, DynIntegrationService>>>,
 }
 
+impl Default for IntegrationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntegrationManager {
     pub fn new() -> Self {
         Self {

@@ -49,6 +49,12 @@ pub struct GitlabProject {
     pub web_url: String,
 }
 
+impl Default for GitlabService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GitlabService {
     pub fn new() -> Self {
         Self {
@@ -137,7 +143,7 @@ impl super::IntegrationService for GitlabService {
         let base_url = self.get_base_url().await?;
         let response = self
             .client
-            .get(&format!("{}/api/v4/user", base_url))
+            .get(format!("{}/api/v4/user", base_url))
             .headers(headers)
             .send()
             .await
@@ -151,7 +157,7 @@ impl super::IntegrationService for GitlabService {
         let base_url = self.get_base_url().await?;
         let events: Vec<GitlabEvent> = self
             .client
-            .get(&format!("{}/api/v4/events", base_url))
+            .get(format!("{}/api/v4/events", base_url))
             .headers(headers)
             .send()
             .await

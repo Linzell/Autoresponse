@@ -74,7 +74,7 @@ impl ServiceBridge {
             {
                 log::error!(
                     "Failed to create notification from service {}: {}",
-                    notification.metadata.source.to_string(),
+                    notification.metadata.source,
                     e
                 );
             }

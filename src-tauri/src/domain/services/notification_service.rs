@@ -210,9 +210,7 @@ impl NotificationService for DefaultNotificationService {
         // Generate response using AI service
         let context = format!(
             "Source: {}\nTitle: {}\nContent: {}\n",
-            notification.metadata.source.to_string(),
-            notification.title,
-            notification.content
+            notification.metadata.source, notification.title, notification.content
         );
 
         self.ai_service.generate_response(&context).await
@@ -477,7 +475,7 @@ mod tests {
         });
         let job_manager = Arc::new(BackgroundJobManager::new());
         let mut mock_ai = MockAIService::new();
-        
+
         // Set up mock expectations for each source
         mock_ai
             .expect_generate_response()
@@ -494,7 +492,7 @@ mod tests {
                 };
                 Ok(response.to_string())
             })
-            .times(8);  // Once for each source type we'll test
+            .times(8); // Once for each source type we'll test
 
         let service = DefaultNotificationService::new(
             repository,
@@ -543,7 +541,9 @@ mod tests {
                 NotificationSource::Microsoft => assert!(response.contains("Microsoft response")),
                 NotificationSource::Google => assert!(response.contains("Google response")),
                 NotificationSource::LinkedIn => assert!(response.contains("LinkedIn response")),
-                NotificationSource::Custom(_) => assert!(response.contains("general notification response")),
+                NotificationSource::Custom(_) => {
+                    assert!(response.contains("general notification response"))
+                }
             }
         }
     }

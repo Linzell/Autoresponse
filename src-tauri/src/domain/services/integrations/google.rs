@@ -112,6 +112,12 @@ pub struct CalendarOrganizer {
     pub self_organized: Option<bool>,
 }
 
+impl Default for GoogleService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GoogleService {
     pub fn new() -> Self {
         Self {
@@ -177,7 +183,7 @@ impl GoogleService {
         let headers = self.get_headers().await?;
         let base_url = self.get_base_url().await?;
         self.client
-            .get(&format!(
+            .get(format!(
                 "{}/gmail/v1/users/me/messages/{}",
                 base_url, message_id
             ))
@@ -197,7 +203,7 @@ impl GoogleService {
     ) -> DomainResult<CalendarEvent> {
         let headers = self.get_headers().await?;
         self.client
-            .get(&format!(
+            .get(format!(
                 "https://www.googleapis.com/calendar/v3/calendars/{}/events/{}",
                 calendar_id, event_id
             ))
@@ -297,7 +303,9 @@ impl super::IntegrationService for GoogleService {
                             message_details: Some(message_details),
                             calendar_details: None,
                         };
-                        if let Ok(notification) = self.create_notification_from_event(event.into()).await {
+                        if let Ok(notification) =
+                            self.create_notification_from_event(event.into()).await
+                        {
                             notifications.push(notification);
                         }
                     }
