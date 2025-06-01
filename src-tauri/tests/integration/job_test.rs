@@ -24,8 +24,9 @@ struct TestJobHandler {
     executed_jobs: Arc<Mutex<Vec<TestJob>>>,
 }
 
+#[async_trait::async_trait]
 impl JobHandler for TestJobHandler {
-    fn handle(&self, job: &mut Job) -> Result<(), String> {
+    async fn handle(&self, job: &mut Job) -> Result<(), String> {
         // First try to deserialize - this validates the payload format
         let job_data: TestJob = match serde_json::from_value(job.payload.clone()) {
             Ok(data) => data,
@@ -38,7 +39,7 @@ impl JobHandler for TestJobHandler {
 
         // Apply the specified delay if any
         if let Some(delay) = job_data.delay {
-            std::thread::sleep(delay);
+            tokio::time::sleep(delay).await;
         }
 
         // First check if we should fail

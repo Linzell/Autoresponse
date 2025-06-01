@@ -216,30 +216,23 @@ impl NotificationProcessor {
     }
 }
 
+#[async_trait::async_trait]
 impl JobHandler for NotificationProcessor {
-    fn handle(&self, job: &mut Job) -> Result<(), String> {
+    async fn handle(&self, job: &mut Job) -> Result<(), String> {
         let payload: NotificationProcessingPayload = serde_json::from_value(job.payload.clone())
             .map_err(|e| format!("Invalid job payload: {}", e))?;
 
-        // Use tokio::task::spawn_blocking for CPU-intensive operations
         let notification_id = payload.notification_id;
         let action_type = payload.action_type;
-        let processor = self.clone();
 
-        futures::executor::block_on(async move {
-            let result = match action_type {
-                NotificationActionType::Process => {
-                    processor.process_notification(notification_id).await
-                }
-                NotificationActionType::GenerateResponse => {
-                    processor.generate_response(notification_id).await
-                }
-                NotificationActionType::ExecuteAction => {
-                    processor.execute_action(notification_id).await
-                }
-            };
-            result.map_err(|e| e.to_string())
-        })
+        let result = match action_type {
+            NotificationActionType::Process => self.process_notification(notification_id).await,
+            NotificationActionType::GenerateResponse => {
+                self.generate_response(notification_id).await
+            }
+            NotificationActionType::ExecuteAction => self.execute_action(notification_id).await,
+        };
+        result.map_err(|e| e.to_string())
     }
 
     fn job_type(&self) -> JobType {
@@ -440,108 +433,99 @@ mod tests {
         (repository, service, processor)
     }
 
-    #[test]
-    fn test_process_notification() {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let notification = create_test_notification();
-            let (repository, _service, processor) = setup_test_environment();
+    #[tokio::test]
+    async fn test_process_notification() {
+        let notification = create_test_notification();
+        let (repository, _service, processor) = setup_test_environment();
 
-            // Save notification to repository
-            repository.save(&mut notification.clone()).await.unwrap();
+        // Save notification to repository
+        repository.save(&mut notification.clone()).await.unwrap();
 
-            let job_payload = NotificationProcessingPayload {
-                notification_id: notification.id,
-                action_type: NotificationActionType::Process,
-            };
+        let job_payload = NotificationProcessingPayload {
+            notification_id: notification.id,
+            action_type: NotificationActionType::Process,
+        };
 
-            let mut job = Job::new(
-                serde_json::to_value(job_payload).unwrap(),
-                super::super::types::JobPriority::Normal,
-                JobType::NotificationProcessing,
-                3,
-            );
+        let mut job = Job::new(
+            serde_json::to_value(job_payload).unwrap(),
+            super::super::types::JobPriority::Normal,
+            JobType::NotificationProcessing,
+            3,
+        );
 
-            processor.handle(&mut job).unwrap();
+        processor.handle(&mut job).await.unwrap();
 
-            // Verify notification was processed
-            let processed = repository
-                .find_by_id(notification.id)
-                .await
-                .unwrap()
-                .unwrap();
-            assert_eq!(processed.status, NotificationStatus::ActionRequired);
-        });
+        // Verify notification was processed
+        let processed = repository
+            .find_by_id(notification.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(processed.status, NotificationStatus::ActionRequired);
     }
 
-    #[test]
-    fn test_generate_response() {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let mut notification = create_test_notification();
-            let (repository, _service, processor) = setup_test_environment();
+    #[tokio::test]
+    async fn test_generate_response() {
+        let mut notification = create_test_notification();
+        let (repository, _service, processor) = setup_test_environment();
 
-            // Setup notification in ActionRequired state
-            notification.mark_action_required();
-            repository.save(&mut notification.clone()).await.unwrap();
+        // Setup notification in ActionRequired state
+        notification.mark_action_required();
+        repository.save(&mut notification.clone()).await.unwrap();
 
-            let job_payload = NotificationProcessingPayload {
-                notification_id: notification.id,
-                action_type: NotificationActionType::GenerateResponse,
-            };
+        let job_payload = NotificationProcessingPayload {
+            notification_id: notification.id,
+            action_type: NotificationActionType::GenerateResponse,
+        };
 
-            let mut job = Job::new(
-                serde_json::to_value(job_payload).unwrap(),
-                JobPriority::Normal,
-                JobType::NotificationProcessing,
-                3,
-            );
+        let mut job = Job::new(
+            serde_json::to_value(job_payload).unwrap(),
+            JobPriority::Normal,
+            JobType::NotificationProcessing,
+            3,
+        );
 
-            processor.handle(&mut job).unwrap();
+        processor.handle(&mut job).await.unwrap();
 
-            // Verify response was generated
-            let processed = repository
-                .find_by_id(notification.id)
-                .await
-                .unwrap()
-                .unwrap();
-            let response = processed.metadata.custom_data.unwrap();
-            assert_eq!(response["generated_response"], TEST_RESPONSE);
-        });
+        // Verify response was generated
+        let processed = repository
+            .find_by_id(notification.id)
+            .await
+            .unwrap()
+            .unwrap();
+        let response = processed.metadata.custom_data.unwrap();
+        assert_eq!(response["generated_response"], TEST_RESPONSE);
     }
 
-    #[test]
-    fn test_execute_action() {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let mut notification = create_test_notification();
-            let (repository, _service, processor) = setup_test_environment();
+    #[tokio::test]
+    async fn test_execute_action() {
+        let mut notification = create_test_notification();
+        let (repository, _service, processor) = setup_test_environment();
 
-            // Setup notification in ActionRequired state
-            notification.mark_action_required();
-            repository.save(&mut notification.clone()).await.unwrap();
+        // Setup notification in ActionRequired state
+        notification.mark_action_required();
+        repository.save(&mut notification.clone()).await.unwrap();
 
-            let job_payload = NotificationProcessingPayload {
-                notification_id: notification.id,
-                action_type: NotificationActionType::ExecuteAction,
-            };
+        let job_payload = NotificationProcessingPayload {
+            notification_id: notification.id,
+            action_type: NotificationActionType::ExecuteAction,
+        };
 
-            let mut job = Job::new(
-                serde_json::to_value(job_payload).unwrap(),
-                JobPriority::Normal,
-                JobType::NotificationProcessing,
-                3,
-            );
+        let mut job = Job::new(
+            serde_json::to_value(job_payload).unwrap(),
+            JobPriority::Normal,
+            JobType::NotificationProcessing,
+            3,
+        );
 
-            processor.handle(&mut job).unwrap();
+        processor.handle(&mut job).await.unwrap();
 
-            // Verify action was executed
-            let processed = repository
-                .find_by_id(notification.id)
-                .await
-                .unwrap()
-                .unwrap();
-            assert_eq!(processed.status, NotificationStatus::ActionTaken);
-        });
+        // Verify action was executed
+        let processed = repository
+            .find_by_id(notification.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(processed.status, NotificationStatus::ActionTaken);
     }
 }

@@ -209,6 +209,7 @@ async fn test_notification_processing_workflow() -> Result<()> {
     let mut job = create_processor_job(notification.id, NotificationActionType::Process);
     processor
         .handle(&mut job)
+        .await
         .expect("Failed to process notification");
 
     // Give the notification time to be processed
@@ -257,6 +258,7 @@ async fn test_response_generation() -> Result<()> {
     let mut job = create_processor_job(notification.id, NotificationActionType::GenerateResponse);
     processor
         .handle(&mut job)
+        .await
         .expect("Failed to generate response");
 
     // Verify events
@@ -288,6 +290,7 @@ async fn test_action_execution() -> Result<()> {
     let mut process_job = create_processor_job(notification.id, NotificationActionType::Process);
     processor
         .handle(&mut process_job)
+        .await
         .expect("Failed to process notification");
 
     // Wait for processing to complete
@@ -305,6 +308,7 @@ async fn test_action_execution() -> Result<()> {
         create_processor_job(notification.id, NotificationActionType::ExecuteAction);
     processor
         .handle(&mut execute_job)
+        .await
         .expect("Failed to execute action");
 
     // Verify notification status
@@ -337,7 +341,7 @@ async fn test_error_handling() -> Result<()> {
 
     // Test with non-existent notification
     let mut job = create_processor_job(Uuid::new_v4(), NotificationActionType::Process);
-    let result = processor.handle(&mut job);
+    let result = processor.handle(&mut job).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("not found"));
 
@@ -350,7 +354,7 @@ async fn test_error_handling() -> Result<()> {
         .expect("Failed to save notification");
 
     let mut job = create_processor_job(notification.id, NotificationActionType::Process);
-    let result = processor.handle(&mut job);
+    let result = processor.handle(&mut job).await;
     assert!(
         result.is_ok(),
         "Processing non-New notification should succeed with warning"
