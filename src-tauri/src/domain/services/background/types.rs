@@ -117,7 +117,8 @@ impl Job {
     }
 }
 
+#[async_trait::async_trait]
 pub trait JobHandler: Send + Sync + Debug {
-    fn handle(&self, job: &mut Job) -> Result<(), String>;
+    async fn handle(&self, job: &mut Job) -> Result<(), String>;
     fn job_type(&self) -> JobType;
 }

@@ -7,7 +7,6 @@ pub mod presentation;
 pub mod test_utils;
 
 use application::{use_cases::MCPServerUseCases, NotificationUseCases, ServiceConfigUseCases};
-use tracing::info;
 use commands::oauth::{
     delete_oauth_service_config, get_service_configs, handle_oauth_callback, save_oauth_config,
     start_oauth_flow,
@@ -36,6 +35,7 @@ use presentation::{
     ServiceConfigListResponse,
 };
 use std::sync::Arc;
+use tracing::info;
 
 // Service Config Commands
 #[tauri::command(rename_all = "snake_case")]

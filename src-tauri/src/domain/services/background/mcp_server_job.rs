@@ -39,37 +39,31 @@ impl MCPServerJob {
 
 #[async_trait::async_trait]
 impl JobHandler for MCPServerJob {
-    fn handle(&self, job: &mut Job) -> Result<(), String> {
+    async fn handle(&self, job: &mut Job) -> Result<(), String> {
         info!("Starting MCP server job");
         let server_config = serde_json::to_value(&self.config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
-        // Use a local runtime for handling async operations
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| format!("Failed to create runtime: {}", e))?;
+        // Test AI service
+        let ai_test = self
+            .ai_service
+            .generate_response("test")
+            .await
+            .map_err(|e| format!("AI service test failed: {}", e))?;
 
-        let test_result = rt.block_on(async {
-            // Test AI service
-            let ai_test = match self.ai_service.generate_response("test").await {
-                Ok(response) => response,
-                Err(e) => return Err(format!("AI service test failed: {}", e)),
-            };
+        // Update the job payload with the test result
+        job.payload = serde_json::json!({
+            "config": server_config,
+            "test_response": ai_test
+        });
 
-            // We got a response, update the job payload with the test result
-            job.payload = serde_json::json!({
-                "config": server_config,
-                "test_response": ai_test
-            });
-
-            // Create MCP server test payload
-            let mcp_test = format!("MCP server test with AI response: {}", ai_test);
-            match self.ai_service.generate_response(&mcp_test).await {
-                Ok(response) => Ok(response),
-                Err(e) => Err(format!("MCP server integration test failed: {}", e)),
-            }
-        })?;
+        // Create MCP server test payload
+        let mcp_test = format!("MCP server test with AI response: {}", ai_test);
+        let test_result = self
+            .ai_service
+            .generate_response(&mcp_test)
+            .await
+            .map_err(|e| format!("MCP server integration test failed: {}", e))?;
 
         info!("MCP server integration test successful: {}", test_result);
         job.metadata.job_type = JobType::Custom("MCPServer".to_string());
@@ -200,8 +194,8 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_job_execution() {
+    #[tokio::test]
+    async fn test_job_execution() {
         let config = MCPConfig::default();
         let mut mock_ai = MockAIService::new();
 
@@ -218,7 +212,7 @@ mod tests {
         let mut job = Job::mcp_server(config.clone(), server_job.ai_service.clone());
 
         // Execute the job handler
-        let result = server_job.handle(&mut job);
+        let result = server_job.handle(&mut job).await;
         assert!(result.is_ok(), "Job execution should succeed");
 
         // Verify job payload was updated with test results
