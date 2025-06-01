@@ -113,12 +113,10 @@ impl ServiceConfigService for DefaultServiceConfigService {
         // Update service in bridge if available
         if result.is_ok() {
             if let Some(bridge) = &self.service_bridge {
-                if let Ok(config) = self.repository.find_by_id(id).await {
-                    if let Some(mut updated_config) = config {
-                        updated_config.auth_config = auth_config;
-                        if let Err(e) = bridge.initialize_service(updated_config).await {
-                            log::warn!("Failed to update service auth in bridge: {}", e);
-                        }
+                if let Ok(Some(mut updated_config)) = self.repository.find_by_id(id).await {
+                    updated_config.auth_config = auth_config;
+                    if let Err(e) = bridge.initialize_service(updated_config).await {
+                        log::warn!("Failed to update service auth in bridge: {}", e);
                     }
                 }
             }

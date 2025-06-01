@@ -44,6 +44,12 @@ pub struct GithubUser {
     pub html_url: String,
 }
 
+impl Default for GithubService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GithubService {
     pub fn new() -> Self {
         Self {
