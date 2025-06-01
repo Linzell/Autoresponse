@@ -19,7 +19,7 @@ pub type DynActionExecutor = Arc<dyn ActionExecutorTrait>;
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
-pub trait ActionExecutorTrait: Send + Sync {
+pub trait ActionExecutorTrait: Send + Sync + std::fmt::Debug {
     async fn execute(&self, notification: &Notification) -> DomainResult<()>;
     async fn handle_email(&self, notification: &Notification) -> DomainResult<()>;
     async fn handle_github(&self, notification: &Notification) -> DomainResult<()>;

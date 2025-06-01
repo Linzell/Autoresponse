@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod ai;
 pub mod background;
+pub mod integrations;
 pub mod notification_service;
 pub mod search;
 pub mod service_config_service;
@@ -11,6 +12,11 @@ pub use background::{
     manager::{BackgroundJobManager, BackgroundJobManagerTrait, DynBackgroundJobManager},
     types::{Job, JobHandler, JobPriority, JobStatus, JobType},
     NotificationActionType, NotificationProcessor,
+};
+
+pub use integrations::{
+    DynIntegrationService, GithubService, GitlabService, GoogleService, IntegrationService,
+    JiraService, LinkedInService, MicrosoftService,
 };
 
 pub use notification_service::{
@@ -32,3 +38,6 @@ pub use ai::MockAIService;
 
 #[cfg(test)]
 pub use search::MockSearchService;
+
+#[cfg(test)]
+pub use integrations::MockIntegrationService;

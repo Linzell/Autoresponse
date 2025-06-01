@@ -1,6 +1,7 @@
 use crate::infrastructure::repositories::cached_repository::CachedEntity;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -31,6 +32,21 @@ pub enum NotificationSource {
     Google,
     LinkedIn,
     Custom(String),
+}
+
+impl fmt::Display for NotificationSource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            NotificationSource::Email => write!(f, "Email"),
+            NotificationSource::Github => write!(f, "Github"),
+            NotificationSource::Gitlab => write!(f, "Gitlab"),
+            NotificationSource::Jira => write!(f, "Jira"),
+            NotificationSource::Microsoft => write!(f, "Microsoft"),
+            NotificationSource::Google => write!(f, "Google"),
+            NotificationSource::LinkedIn => write!(f, "LinkedIn"),
+            NotificationSource::Custom(s) => write!(f, "{}", s),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

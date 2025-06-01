@@ -17,6 +17,7 @@ pub trait Repository<T: CachedEntity> {
     async fn delete(&self, id: Uuid) -> Result<(), DomainError>;
 }
 
+#[derive(Debug)]
 pub struct CachedRepository<T, R>
 where
     T: CachedEntity,

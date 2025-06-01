@@ -20,9 +20,11 @@ use uuid::Uuid;
 #[cfg(test)]
 use mockall::automock;
 
+use super::integrations::service_bridge::ServiceBridge;
+
 #[cfg_attr(test, automock)]
 #[async_trait]
-pub trait NotificationService: Send + Sync {
+pub trait NotificationService: Send + Sync + std::fmt::Debug {
     async fn create_notification(
         &self,
         title: String,
@@ -53,11 +55,13 @@ pub trait NotificationService: Send + Sync {
     async fn execute_action(&self, notification: &Notification) -> DomainResult<()>;
 }
 
+#[derive(Debug)]
 pub struct DefaultNotificationService {
     repository: DynNotificationRepository,
     job_manager: DynBackgroundJobManager,
     action_executor: DynActionExecutor,
     ai_service: DynAIService,
+    service_bridge: Option<Arc<ServiceBridge>>,
 }
 
 impl DefaultNotificationService {
@@ -72,7 +76,13 @@ impl DefaultNotificationService {
             job_manager,
             action_executor,
             ai_service,
+            service_bridge: None,
         }
+    }
+
+    pub fn with_service_bridge(mut self, service_bridge: Arc<ServiceBridge>) -> Self {
+        self.service_bridge = Some(service_bridge);
+        self
     }
 }
 
@@ -181,6 +191,14 @@ impl NotificationService for DefaultNotificationService {
         &self,
         notification: &Notification,
     ) -> DomainResult<bool> {
+        // Check if service bridge can handle this notification
+        if let Some(bridge) = &self.service_bridge {
+            if let Ok(()) = bridge.process_notification(notification).await {
+                return Ok(true);
+            }
+        }
+
+        // Fall back to AI analysis
         let analysis = self
             .ai_service
             .analyze_content(&notification.content)
@@ -189,35 +207,29 @@ impl NotificationService for DefaultNotificationService {
     }
 
     async fn generate_response(&self, notification: &Notification) -> DomainResult<String> {
-        // TODO: Implement proper response generation with AI
-        // For now, return a simple templated response
-        let response = match notification.metadata.source {
-            NotificationSource::Email => {
-                "Thank you for your email. I will review and respond shortly."
-            }
-            NotificationSource::Github => {
-                "Thanks for the notification. I will check the GitHub issue/PR."
-            }
-            NotificationSource::Gitlab => {
-                "Thanks for the notification. I will review the GitLab item."
-            }
-            NotificationSource::Jira => "I will look into this Jira ticket soon.",
-            NotificationSource::Microsoft => {
-                "Thank you for the notification. I will check Microsoft Teams/Azure."
-            }
-            NotificationSource::Google => {
-                "Thanks for the notification. I will check Google Workspace."
-            }
-            NotificationSource::LinkedIn => "Thank you for reaching out on LinkedIn.",
-            NotificationSource::Custom(_) => {
-                "Thank you for the notification. I will review it shortly."
-            }
-        };
+        // Generate response using AI service
+        let context = format!(
+            "Source: {}\nTitle: {}\nContent: {}\n",
+            notification.metadata.source.to_string(),
+            notification.title,
+            notification.content
+        );
 
-        Ok(response.to_string())
+        self.ai_service.generate_response(&context).await
     }
 
     async fn execute_action(&self, notification: &Notification) -> DomainResult<()> {
+        // Try service-specific action first if service bridge is available
+        if let Some(bridge) = &self.service_bridge {
+            if let Ok(()) = bridge
+                .execute_action(notification, "default", serde_json::json!({}))
+                .await
+            {
+                return Ok(());
+            }
+        }
+
+        // Fall back to default action executor
         self.action_executor.execute(notification).await
     }
 }
@@ -243,6 +255,7 @@ mod tests {
     use std::sync::Mutex;
 
     mock! {
+        #[derive(Debug)]
         Repository {}
 
         #[async_trait]
@@ -257,6 +270,7 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
     struct TestRepository {
         notifications: Mutex<HashMap<Uuid, Notification>>,
     }
@@ -462,11 +476,31 @@ mod tests {
             notifications: Mutex::new(HashMap::new()),
         });
         let job_manager = Arc::new(BackgroundJobManager::new());
+        let mut mock_ai = MockAIService::new();
+        
+        // Set up mock expectations for each source
+        mock_ai
+            .expect_generate_response()
+            .returning(|context| {
+                let response = match context {
+                    s if s.contains("Source: Email") => "This is an email response",
+                    s if s.contains("Source: Github") => "This is a GitHub response",
+                    s if s.contains("Source: Gitlab") => "This is a GitLab response",
+                    s if s.contains("Source: Jira") => "This is a Jira response",
+                    s if s.contains("Source: Microsoft") => "This is a Microsoft response",
+                    s if s.contains("Source: Google") => "This is a Google response",
+                    s if s.contains("Source: LinkedIn") => "This is a LinkedIn response",
+                    _ => "This is a general notification response",
+                };
+                Ok(response.to_string())
+            })
+            .times(8);  // Once for each source type we'll test
+
         let service = DefaultNotificationService::new(
             repository,
             job_manager,
             Arc::new(ActionExecutor::new()),
-            Arc::new(MockAIService::new()),
+            Arc::new(mock_ai),
         );
 
         // Test response generation for different sources
@@ -502,14 +536,14 @@ mod tests {
 
             // Verify source-specific response
             match source {
-                NotificationSource::Email => assert!(response.contains("email")),
-                NotificationSource::Github => assert!(response.contains("GitHub")),
-                NotificationSource::Gitlab => assert!(response.contains("GitLab")),
-                NotificationSource::Jira => assert!(response.contains("Jira")),
-                NotificationSource::Microsoft => assert!(response.contains("Microsoft")),
-                NotificationSource::Google => assert!(response.contains("Google")),
-                NotificationSource::LinkedIn => assert!(response.contains("LinkedIn")),
-                NotificationSource::Custom(_) => assert!(response.contains("notification")),
+                NotificationSource::Email => assert!(response.contains("email response")),
+                NotificationSource::Github => assert!(response.contains("GitHub response")),
+                NotificationSource::Gitlab => assert!(response.contains("GitLab response")),
+                NotificationSource::Jira => assert!(response.contains("Jira response")),
+                NotificationSource::Microsoft => assert!(response.contains("Microsoft response")),
+                NotificationSource::Google => assert!(response.contains("Google response")),
+                NotificationSource::LinkedIn => assert!(response.contains("LinkedIn response")),
+                NotificationSource::Custom(_) => assert!(response.contains("general notification response")),
             }
         }
     }

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 #[async_trait]
-pub trait NotificationRepository: Send + Sync {
+pub trait NotificationRepository: Send + Sync + std::fmt::Debug {
     async fn save(&self, notification: &mut Notification) -> DomainResult<()>;
     async fn find_by_id(&self, id: uuid::Uuid) -> DomainResult<Option<Notification>>;
     async fn find_all(&self) -> DomainResult<Vec<Notification>>;

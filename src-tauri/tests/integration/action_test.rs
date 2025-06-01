@@ -59,6 +59,7 @@ impl ActionExecutorTrait for TestActionExecutor {
     }
 }
 
+#[derive(Debug)]
 struct TestNotificationService {
     action_executor: Arc<TestActionExecutor>,
 }

@@ -10,7 +10,7 @@ pub type DynBackgroundJobManager = Arc<dyn BackgroundJobManagerTrait>;
 
 #[async_trait]
 #[cfg_attr(test, mockall::automock)]
-pub trait BackgroundJobManagerTrait: Send + Sync {
+pub trait BackgroundJobManagerTrait: Send + Sync + std::fmt::Debug {
     async fn register_handler(&self, handler: Arc<dyn JobHandler>) -> Result<(), DomainError>;
     async fn submit_job(&self, job: Job) -> Result<uuid::Uuid, DomainError>;
     async fn get_job_status(&self, job_id: uuid::Uuid) -> Option<JobStatus>;
