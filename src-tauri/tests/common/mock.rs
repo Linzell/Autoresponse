@@ -13,6 +13,7 @@ use autoresponse_lib::domain::{
 use uuid::Uuid;
 
 mockall::mock! {
+    #[derive(Debug)]
     pub NotificationService {}
 
     #[async_trait::async_trait]

@@ -41,6 +41,18 @@ impl From<rusqlite::Error> for DomainError {
     }
 }
 
+impl From<reqwest::header::InvalidHeaderValue> for DomainError {
+    fn from(error: reqwest::header::InvalidHeaderValue) -> Self {
+        DomainError::InternalError(format!("Invalid header value: {}", error))
+    }
+}
+
+impl From<reqwest::header::InvalidHeaderName> for DomainError {
+    fn from(error: reqwest::header::InvalidHeaderName) -> Self {
+        DomainError::InternalError(format!("Invalid header name: {}", error))
+    }
+}
+
 impl From<serde_json::Error> for DomainError {
     fn from(error: serde_json::Error) -> Self {
         DomainError::InternalError(format!("JSON error: {}", error))

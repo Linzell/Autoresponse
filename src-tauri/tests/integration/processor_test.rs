@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tokio;
 use uuid::Uuid;
 
+#[derive(Debug)]
 struct TestNotificationRepository {
     notifications: Arc<tokio::sync::Mutex<Vec<Notification>>>,
 }
@@ -89,6 +90,7 @@ impl NotificationRepository for TestNotificationRepository {
     }
 }
 
+#[derive(Debug)]
 struct TestNotificationService;
 
 #[async_trait::async_trait]
