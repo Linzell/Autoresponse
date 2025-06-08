@@ -15,7 +15,7 @@ use domain::{
     services::{
         actions::ActionExecutor,
         ai::{AIConfig, MCPConfig, OllamaService},
-        background::{BackgroundJobManager, manager::BackgroundJobManagerTrait},
+        background::{manager::BackgroundJobManagerTrait, BackgroundJobManager},
         DefaultNotificationService, DefaultServiceConfigService, NotificationService,
         ServiceConfigService,
     },
