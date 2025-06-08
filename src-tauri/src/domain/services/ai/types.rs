@@ -59,7 +59,7 @@ pub struct AIConfig {
 impl Default for AIConfig {
     fn default() -> Self {
         Self {
-            model: "qwen3:32b".to_string(),
+            model: "qwen2.5:latest".to_string(),
             base_url: "http://localhost:11434".to_string(),
             timeout_seconds: 30,
             user_preferences: UserPreferences::default(),

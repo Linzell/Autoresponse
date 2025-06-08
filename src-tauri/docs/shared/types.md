@@ -4,14 +4,14 @@
 
 ```typescript
 enum ServiceType {
-  Email = 'Email',
-  Github = 'Github',
-  Gitlab = 'Gitlab',
-  Jira = 'Jira',
-  Google = 'Google',
-  Microsoft = 'Microsoft',
-  LinkedIn = 'LinkedIn',
-  Custom = string  // Custom service type with string identifier
+  Email = "Email",
+  Github = "Github",
+  Gitlab = "Gitlab",
+  Jira = "Jira",
+  Google = "Google",
+  Microsoft = "Microsoft",
+  LinkedIn = "LinkedIn",
+  Custom = string, // Custom service type with string identifier
 }
 
 interface ServiceConfig {
@@ -29,10 +29,10 @@ interface ServiceConfig {
 }
 
 enum AuthType {
-  OAuth2 = 'OAuth2',
-  BasicAuth = 'BasicAuth',
-  ApiKey = 'ApiKey',
-  Custom = string  // Custom auth type with string identifier
+  OAuth2 = "OAuth2",
+  BasicAuth = "BasicAuth",
+  ApiKey = "ApiKey",
+  Custom = string, // Custom auth type with string identifier
 }
 
 interface OAuth2Config {
@@ -67,7 +67,7 @@ type AuthConfig = {
   BasicAuth: BasicAuthConfig;
   ApiKey: ApiKeyConfig;
   Custom: CustomAuthConfig;
-}
+};
 
 interface ServiceEndpoints {
   baseUrl: string;
@@ -79,30 +79,30 @@ interface ServiceEndpoints {
 
 ```typescript
 enum NotificationStatus {
-  New = 'New',
-  Read = 'Read',
-  Archived = 'Archived',
-  ActionRequired = 'ActionRequired',
-  ActionTaken = 'ActionTaken',
-  Deleted = 'Deleted'
+  New = "New",
+  Read = "Read",
+  Archived = "Archived",
+  ActionRequired = "ActionRequired",
+  ActionTaken = "ActionTaken",
+  Deleted = "Deleted",
 }
 
 enum NotificationPriority {
-  Low = 'Low',
-  Medium = 'Medium',
-  High = 'High',
-  Critical = 'Critical'
+  Low = "Low",
+  Medium = "Medium",
+  High = "High",
+  Critical = "Critical",
 }
 
 enum NotificationSource {
-  Email = 'Email',
-  Github = 'Github',
-  Gitlab = 'Gitlab',
-  Jira = 'Jira',
-  Microsoft = 'Microsoft',
-  Google = 'Google',
-  LinkedIn = 'LinkedIn',
-  Custom = string  // Custom source with string identifier
+  Email = "Email",
+  Github = "Github",
+  Gitlab = "Gitlab",
+  Jira = "Jira",
+  Microsoft = "Microsoft",
+  Google = "Google",
+  LinkedIn = "LinkedIn",
+  Custom = string, // Custom source with string identifier
 }
 
 interface Notification {

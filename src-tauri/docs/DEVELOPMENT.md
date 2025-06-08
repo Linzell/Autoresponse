@@ -1,6 +1,7 @@
 # Autoresponse Development Guide
 
 ## Table of Contents
+
 1. [Project Structure](#project-structure)
 2. [Implementation Patterns](#implementation-patterns)
 3. [Adding New Features](#adding-new-features)
@@ -32,6 +33,7 @@ src-tauri/src/
 ### 1. Adding a New Service
 
 #### a. Define Domain Entity
+
 ```rust
 // domain/entities/example_service.rs
 use uuid::Uuid;
@@ -62,6 +64,7 @@ impl ExampleService {
 ```
 
 #### b. Create Service Interface
+
 ```rust
 // domain/services/example_service.rs
 use async_trait::async_trait;
@@ -85,6 +88,7 @@ pub type DynExampleService = Arc<dyn ExampleService>;
 ```
 
 #### c. Implement Service
+
 ```rust
 // domain/services/example_service_impl.rs
 pub struct DefaultExampleService {
@@ -102,12 +106,13 @@ impl ExampleService for DefaultExampleService {
         self.repository.save(&mut example).await?;
         Ok(example)
     }
-    
+
     // Implement other methods...
 }
 ```
 
 #### d. Define DTOs
+
 ```rust
 // presentation/dtos/example.rs
 #[derive(Debug, Serialize, Deserialize)]
@@ -139,6 +144,7 @@ impl From<ExampleService> for ExampleResponse {
 ```
 
 #### e. Create Controller
+
 ```rust
 // presentation/controllers/example_controller.rs
 pub struct ExampleController {
@@ -261,11 +267,13 @@ async fn test_mcp_server_endpoint() -> DomainResult<()> {
 ## Adding New Features
 
 1. **Domain First Approach**
+
    - Start with domain entities and interfaces
    - Define clear boundaries and behaviors
    - Use value objects for complex attributes
 
 2. **Layer Implementation Order**
+
    1. Domain layer (entities, interfaces)
    2. Infrastructure layer (repositories, external services)
    3. Application layer (use cases)
@@ -283,6 +291,7 @@ async fn test_mcp_server_endpoint() -> DomainResult<()> {
 ## Testing Guidelines
 
 1. **Unit Tests**
+
    - Test each component in isolation
    - Use mocks for dependencies
    - Cover error cases and edge scenarios
@@ -291,6 +300,7 @@ async fn test_mcp_server_endpoint() -> DomainResult<()> {
    - Use descriptive test names that indicate scenario and expected outcome
 
 2. **Integration Tests**
+
    - Test complete workflows
    - Use test databases and mock servers
    - Cover primary use cases
@@ -309,17 +319,20 @@ async fn test_mcp_server_endpoint() -> DomainResult<()> {
 ## Error Handling
 
 1. **Domain Errors**
+
    - Use custom error types
    - Include context and details
    - Map to appropriate HTTP status codes
 
 2. **Error Types**
+
    - ValidationError: Input validation failures
    - NotFoundError: Resource not found
    - AuthError: Authentication/authorization failures
    - ServiceError: External service failures
 
 3. **Error Response Format**
+
 ```rust
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
@@ -332,26 +345,31 @@ pub struct ErrorResponse {
 ## Best Practices
 
 1. **Code Organization**
+
    - Maximum file size: 500 lines
    - Maximum function size: 50 lines
    - Maximum nesting depth: 3 levels
 
 2. **Documentation**
+
    - Document public interfaces
    - Include examples in doc comments
    - Keep documentation up to date
 
 3. **Error Handling**
+
    - Use Result types consistently
    - Provide context with errors
    - Handle all error cases
 
 4. **Testing**
+
    - Write tests first (TDD)
    - Mock external dependencies
    - Use meaningful test names
 
 5. **Performance**
+
    - Use async/await appropriately
    - Implement proper caching
    - Monitor resource usage

@@ -5,22 +5,26 @@ A desktop application that centralizes notifications and actions from various se
 ## Quick Start
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/yourusername/autoresponse.git
 cd autoresponse
 ```
 
 2. Install dependencies:
+
 ```bash
 bun install
 ```
 
 3. Run development environment:
+
 ```bash
 bun tauri dev
 ```
 
 4. Build for production:
+
 ```bash
 bun tauri build
 ```
@@ -35,6 +39,7 @@ Detailed documentation can be found in the following locations:
 ## Development Prerequisites
 
 ### Required Software
+
 - [Node.js](https://nodejs.org/) (v18+)
 - [Rust](https://rustup.rs/) (Latest stable)
 
@@ -78,6 +83,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 For support, please:
+
 1. Check the documentation in the `docs` directory
 2. Open an issue in the GitHub repository
 3. Contact the maintainers directly

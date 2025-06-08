@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -12,9 +12,9 @@ import {
   InputLabel,
   Alert,
   CircularProgress,
-} from '@mui/material';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
+} from "@mui/material";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 
 interface OAuthCredentials {
   clientId: string;
@@ -23,11 +23,11 @@ interface OAuthCredentials {
 }
 
 enum ServiceType {
-  Github = 'Github',
-  Google = 'Google',
-  Microsoft = 'Microsoft',
-  Gitlab = 'Gitlab',
-  LinkedIn = 'LinkedIn',
+  Github = "Github",
+  Google = "Google",
+  Microsoft = "Microsoft",
+  Gitlab = "Gitlab",
+  LinkedIn = "LinkedIn",
 }
 
 interface ServiceEndpoints {
@@ -49,10 +49,12 @@ export const OAuthConfig: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [selectedService, setSelectedService] = useState<ServiceType>(ServiceType.Github);
+  const [selectedService, setSelectedService] = useState<ServiceType>(
+    ServiceType.Github,
+  );
   const [credentials, setCredentials] = useState<OAuthCredentials>({
-    clientId: '',
-    clientSecret: '',
+    clientId: "",
+    clientSecret: "",
     serviceType: ServiceType.Github,
   });
 
@@ -71,7 +73,7 @@ export const OAuthConfig: React.FC = () => {
   }, []);
 
   const setupOAuthListener = async () => {
-    const unlisten = await listen('oauth-callback', (event: any) => {
+    const unlisten = await listen("oauth-callback", (event: any) => {
       const { success, configId, error } = event.payload;
       if (success) {
         setSuccess(`OAuth configuration completed successfully!`);
@@ -85,7 +87,7 @@ export const OAuthConfig: React.FC = () => {
 
   const loadConfigs = async () => {
     try {
-      const configs = await invoke<ServiceConfig[]>('get_service_configs');
+      const configs = await invoke<ServiceConfig[]>("get_service_configs");
       setConfigs(configs);
       setLoading(false);
     } catch (err) {
@@ -100,9 +102,11 @@ export const OAuthConfig: React.FC = () => {
     setCredentials({ ...credentials, serviceType });
   };
 
-  const handleInputChange = (field: keyof OAuthCredentials) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setCredentials({ ...credentials, [field]: event.target.value });
-  };
+  const handleInputChange =
+    (field: keyof OAuthCredentials) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setCredentials({ ...credentials, [field]: event.target.value });
+    };
 
   const handleSave = async () => {
     setLoading(true);
@@ -110,14 +114,14 @@ export const OAuthConfig: React.FC = () => {
     setSuccess(null);
 
     try {
-      const savedConfig = await invoke<ServiceConfig>('save_oauth_config', {
+      const savedConfig = await invoke<ServiceConfig>("save_oauth_config", {
         credentials: {
           ...credentials,
           serviceType: selectedService,
         },
       });
 
-      setSuccess('Configuration saved successfully!');
+      setSuccess("Configuration saved successfully!");
       await loadConfigs();
     } catch (err) {
       setError(`Failed to save configuration: ${err}`);
@@ -132,10 +136,10 @@ export const OAuthConfig: React.FC = () => {
     setSuccess(null);
 
     try {
-      const authUrl = await invoke<string>('start_oauth_flow', {
+      const authUrl = await invoke<string>("start_oauth_flow", {
         serviceType: config.serviceType,
       });
-      window.open(authUrl, '_blank');
+      window.open(authUrl, "_blank");
     } catch (err) {
       setError(`Failed to start OAuth flow: ${err}`);
       setLoading(false);
@@ -143,7 +147,7 @@ export const OAuthConfig: React.FC = () => {
   };
 
   const handleDelete = async (configId: string) => {
-    if (!confirm('Are you sure you want to delete this configuration?')) {
+    if (!confirm("Are you sure you want to delete this configuration?")) {
       return;
     }
 
@@ -152,8 +156,8 @@ export const OAuthConfig: React.FC = () => {
     setSuccess(null);
 
     try {
-      await invoke('delete_oauth_service_config', { configId });
-      setSuccess('Configuration deleted successfully!');
+      await invoke("delete_oauth_service_config", { configId });
+      setSuccess("Configuration deleted successfully!");
       await loadConfigs();
     } catch (err) {
       setError(`Failed to delete configuration: ${err}`);
@@ -163,7 +167,7 @@ export const OAuthConfig: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 800, margin: '0 auto', padding: 2 }}>
+    <Box sx={{ maxWidth: 800, margin: "0 auto", padding: 2 }}>
       <Typography variant="h5" gutterBottom>
         OAuth Service Configuration
       </Typography>
@@ -175,7 +179,11 @@ export const OAuthConfig: React.FC = () => {
       )}
 
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setSuccess(null)}
+        >
           {success}
         </Alert>
       )}
@@ -197,7 +205,7 @@ export const OAuthConfig: React.FC = () => {
             fullWidth
             label="Client ID"
             value={credentials.clientId}
-            onChange={handleInputChange('clientId')}
+            onChange={handleInputChange("clientId")}
             sx={{ mb: 2 }}
           />
 
@@ -206,7 +214,7 @@ export const OAuthConfig: React.FC = () => {
             label="Client Secret"
             type="password"
             value={credentials.clientSecret}
-            onChange={handleInputChange('clientSecret')}
+            onChange={handleInputChange("clientSecret")}
             sx={{ mb: 2 }}
           />
 
@@ -214,9 +222,11 @@ export const OAuthConfig: React.FC = () => {
             variant="contained"
             color="primary"
             onClick={handleSave}
-            disabled={loading || !credentials.clientId || !credentials.clientSecret}
+            disabled={
+              loading || !credentials.clientId || !credentials.clientSecret
+            }
           >
-            {loading ? <CircularProgress size={24} /> : 'Save Configuration'}
+            {loading ? <CircularProgress size={24} /> : "Save Configuration"}
           </Button>
         </CardContent>
       </Card>
@@ -235,7 +245,7 @@ export const OAuthConfig: React.FC = () => {
               Service Type: {config.serviceType}
             </Typography>
             <Typography color="textSecondary" gutterBottom>
-              Status: {config.enabled ? 'Enabled' : 'Disabled'}
+              Status: {config.enabled ? "Enabled" : "Disabled"}
             </Typography>
             <Box sx={{ mt: 2 }}>
               <Button

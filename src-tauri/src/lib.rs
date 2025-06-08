@@ -15,7 +15,7 @@ use domain::{
     services::{
         actions::ActionExecutor,
         ai::{AIConfig, MCPConfig, OllamaService},
-        background::BackgroundJobManager,
+        background::{BackgroundJobManager, manager::BackgroundJobManagerTrait},
         DefaultNotificationService, DefaultServiceConfigService, NotificationService,
         ServiceConfigService,
     },
@@ -36,6 +36,8 @@ use presentation::{
 };
 use std::sync::Arc;
 use tracing::info;
+
+use crate::domain::services::background::mcp_server_job::MCPServerJobBuilder;
 
 // Service Config Commands
 #[tauri::command(rename_all = "snake_case")]
@@ -274,7 +276,20 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         job_manager.clone(),
         ai_service.clone(),
     ));
+
+    // Create and register the MCP server job handler
     let mcp_config = MCPConfig::default();
+    let mcp_job_handler = MCPServerJobBuilder::new(mcp_config.clone())
+        .with_ai_service(ai_service.clone())
+        .build()
+        .expect("Failed to create MCP server job handler");
+
+    job_manager
+        .register_handler(mcp_job_handler)
+        .await
+        .expect("Failed to register MCP server job handler");
+
+    // Now start the MCP server
     let mcp_job_id = mcp_use_cases
         .start_mcp_server(mcp_config)
         .await
