@@ -1,6 +1,7 @@
 # Autoresponse Backend Documentation
 
 ## Table of Contents
+
 1. [Architecture Overview](#architecture-overview)
 2. [Domain Model](#domain-model)
 3. [Backend Commands API](#backend-commands-api)
@@ -26,6 +27,7 @@ src-tauri/
 For detailed implementation patterns and best practices for each layer, see the [Development Guide](DEVELOPMENT.md#implementation-patterns).
 
 ### Key Components
+
 - **Controllers**: Handle command/query routing and validation
 - **Use Cases**: Implement business logic workflows
 - **Services**: Domain-specific business operations
@@ -35,11 +37,13 @@ For detailed implementation patterns and best practices for each layer, see the 
 ## Domain Model
 
 ### Service Configuration
+
 - Represents external service integrations
 - Manages authentication and connection settings
 - Handles service lifecycle (enable/disable)
 
 ### Notification
+
 - Core entity for all system notifications
 - Manages notification lifecycle and state
 - Supports prioritization and categorization
@@ -49,6 +53,7 @@ For detailed implementation patterns and best practices for each layer, see the 
 ### Service Configuration Commands
 
 #### Create Service Config
+
 ```typescript
 interface CreateServiceConfigRequest {
   name: string;
@@ -62,21 +67,23 @@ interface CreateServiceConfigRequest {
 }
 
 // Usage
-await invoke('create_service_config', {
-  requestJson: JSON.stringify(request)
+await invoke("create_service_config", {
+  requestJson: JSON.stringify(request),
 });
 ```
 
 #### Get Service Config
+
 ```typescript
 // By ID
-await invoke('get_service_config', { id: string });
+await invoke("get_service_config", { id: string });
 
 // Get All
-await invoke('get_all_service_configs');
+await invoke("get_all_service_configs");
 ```
 
 #### Update Auth Config
+
 ```typescript
 interface UpdateServiceAuthRequest {
   clientId?: string;
@@ -86,73 +93,78 @@ interface UpdateServiceAuthRequest {
   tokenExpiry?: string;
 }
 
-await invoke('update_auth_config', {
+await invoke("update_auth_config", {
   id: string,
-  requestJson: JSON.stringify(request)
+  requestJson: JSON.stringify(request),
 });
 ```
 
 #### Service Status Management
+
 ```typescript
 // Enable service
-await invoke('enable_service', { id: string });
+await invoke("enable_service", { id: string });
 
 // Disable service
-await invoke('disable_service', { id: string });
+await invoke("disable_service", { id: string });
 
 // Delete service
-await invoke('delete_service_config', { id: string });
+await invoke("delete_service_config", { id: string });
 ```
 
 ### Notification Commands
 
 #### Create Notification
+
 ```typescript
 // See shared/types.md for CreateNotificationRequest interface
 
-await invoke('create_notification', {
-  requestJson: JSON.stringify(request)
+await invoke("create_notification", {
+  requestJson: JSON.stringify(request),
 });
 ```
 
 #### Get Notifications
+
 ```typescript
 // Get by ID
-await invoke('get_notification', { id: string });
+await invoke("get_notification", { id: string });
 
 // Get All with Filtering
 // See shared/types.md for NotificationFilterRequest interface
 
-await invoke('get_all_notifications', {
-  filterJson: JSON.stringify(filter)
+await invoke("get_all_notifications", {
+  filterJson: JSON.stringify(filter),
 });
 ```
 
 #### Notification State Management
+
 ```typescript
 // Mark as read
-await invoke('mark_as_read', { id: string });
+await invoke("mark_as_read", { id: string });
 
 // Mark action required
-await invoke('mark_action_required', { id: string });
+await invoke("mark_action_required", { id: string });
 
 // Mark action taken
-await invoke('mark_action_taken', { id: string });
+await invoke("mark_action_taken", { id: string });
 
 // Archive
-await invoke('archive_notification', { id: string });
+await invoke("archive_notification", { id: string });
 
 // Delete
-await invoke('delete_notification', { id: string });
+await invoke("delete_notification", { id: string });
 ```
 
 #### Bulk Operations
+
 ```typescript
 // Mark all as read
-await invoke('mark_all_notifications_read');
+await invoke("mark_all_notifications_read");
 
 // Archive all read notifications
-await invoke('archive_all_read_notifications');
+await invoke("archive_all_read_notifications");
 ```
 
 ## Error Handling
@@ -162,24 +174,27 @@ await invoke('archive_all_read_notifications');
 For detailed error type definitions, please refer to the [shared types documentation](shared/types.md#error-types).
 
 ### Error Handling Example
+
 ```typescript
 try {
-  await invoke('create_service_config', {
-    requestJson: JSON.stringify(request)
+  await invoke("create_service_config", {
+    requestJson: JSON.stringify(request),
   });
 } catch (error) {
   if (error instanceof Error) {
     // Handle validation errors
-    if ('field' in error) {
-      console.error(`Validation error in field ${error.field}: ${error.message}`);
+    if ("field" in error) {
+      console.error(
+        `Validation error in field ${error.field}: ${error.message}`,
+      );
     }
     // Handle service errors
-    else if ('code' in error) {
+    else if ("code" in error) {
       console.error(`Service error ${error.code}: ${error.message}`);
     }
     // Handle unknown errors
     else {
-      console.error('Unknown error:', error.message);
+      console.error("Unknown error:", error.message);
     }
   }
 }
@@ -203,27 +218,28 @@ Please refer to the shared types documentation for detailed type definitions.
 > **Note**: For implementation patterns and best practices when adding new features, see the [Development Guide](DEVELOPMENT.md#adding-new-features).
 
 ### Service Configuration Flow
+
 ```typescript
 // 1. Create service config
 const createServiceConfig = async () => {
   const config: CreateServiceConfigRequest = {
-    name: 'Github',
-    type: 'GITHUB',
+    name: "Github",
+    type: "GITHUB",
     authConfig: {
-      clientId: 'your-client-id',
-      clientSecret: 'your-client-secret',
-      redirectUri: 'http://localhost:3000/callback',
-      scopes: ['repo', 'user']
-    }
+      clientId: "your-client-id",
+      clientSecret: "your-client-secret",
+      redirectUri: "http://localhost:3000/callback",
+      scopes: ["repo", "user"],
+    },
   };
 
   try {
-    const response = await invoke('create_service_config', {
-      requestJson: JSON.stringify(config)
+    const response = await invoke("create_service_config", {
+      requestJson: JSON.stringify(config),
     });
     return response;
   } catch (error) {
-    console.error('Failed to create service config:', error);
+    console.error("Failed to create service config:", error);
     throw error;
   }
 };
@@ -232,28 +248,29 @@ const createServiceConfig = async () => {
 ```
 
 ### Notification Management Flow
+
 ```typescript
 // Example notification creation
 const createNotification = async () => {
   const notification: CreateNotificationRequest = {
-    title: 'New Pull Request',
-    content: 'A new pull request requires your review',
-    source: 'github',
-    priority: 'HIGH',
-    tags: ['review', 'pull-request'],
+    title: "New Pull Request",
+    content: "A new pull request requires your review",
+    source: "github",
+    priority: "HIGH",
+    tags: ["review", "pull-request"],
     metadata: {
-      repositoryId: '123',
-      prNumber: '456'
-    }
+      repositoryId: "123",
+      prNumber: "456",
+    },
   };
 
   try {
-    const response = await invoke('create_notification', {
-      requestJson: JSON.stringify(notification)
+    const response = await invoke("create_notification", {
+      requestJson: JSON.stringify(notification),
     });
     return response;
   } catch (error) {
-    console.error('Failed to create notification:', error);
+    console.error("Failed to create notification:", error);
     throw error;
   }
 };
@@ -264,6 +281,7 @@ const createNotification = async () => {
 ## Development Guide
 
 For detailed information about:
+
 - Implementation patterns
 - Testing guidelines
 - Error handling

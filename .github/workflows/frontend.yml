@@ -16,8 +16,7 @@ on:
         required: false
 
 env:
-  NODE_VERSION: "20"
-  PNPM_VERSION: "8"
+  NODE_VERSION: "22"
 
 jobs:
   security:
@@ -40,7 +39,7 @@ jobs:
         run: bun install
 
       - name: Run security audit
-        run: bunx audit
+        run: bun audit
 
   deps:
     name: Dependencies Check
@@ -84,12 +83,12 @@ jobs:
         run: bun install
 
       - name: Type check
-        run: bun run tsc --noEmit
+        run: bun typecheck
 
       - name: Lint code
         run: |
-          bunx eslint . --max-warnings 0
-          bunx prettier --check .
+          bun lint
+          bun format
 
   test:
     name: Test
@@ -111,13 +110,55 @@ jobs:
         run: bun install
 
       - name: Run tests with coverage
-        run: bun test --coverage
+        run: bun test:all --coverage
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
           path: coverage/
+          retention-days: 14
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: cypress/included:latest
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build app
+        run: bun run build
+
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+          start: bun run preview
+          wait-on: "http://localhost:1420"
+          record: false
+
+      - name: Upload Cypress artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-artifacts
+          path: |
+            cypress/videos/
+            cypress/screenshots/
           retention-days: 14
 
   accessibility:
@@ -139,11 +180,5 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Build Storybook
-        run: bun run build-storybook
-
       - name: Run accessibility tests
-        run: |
-          bunx start-storybook -p 6006 -c .storybook &
-          sleep 10
-          bunx axe-storybook
+        run: bun run test:storybook

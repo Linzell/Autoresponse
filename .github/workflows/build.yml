@@ -12,14 +12,14 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     types: [opened, synchronize, reopened]
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  NODE_VERSION: '20'
+  NODE_VERSION: "22"
 
 jobs:
   tests:
@@ -134,7 +134,7 @@ jobs:
           releaseName: "Autoresponse v${{ github.ref_name }}"
           releaseBody: |
             See the assets to download and install this version.
-            
+
             For a full list of changes, see the [CHANGELOG.md](https://github.com/username/autoresponse/blob/main/CHANGELOG.md)
           releaseDraft: ${{ !startsWith(github.ref, 'refs/tags/') }}
           prerelease: false
