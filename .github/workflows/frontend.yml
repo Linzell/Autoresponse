@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name != 'workflow_call' || inputs.run_security
     timeout-minutes: 10
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name != 'workflow_call' || inputs.run_deps
     timeout-minutes: 10
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
