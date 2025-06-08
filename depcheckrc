@@ -1,7 +1,0 @@
-ignores: [
-    "@storybook/addon-onboarding",
-    "@storybook/addon-docs",
-    "@vitest/coverage-v8",
-    "playwright"
-]
-skip-missing: true
