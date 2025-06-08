@@ -3,6 +3,7 @@
 This document provides comprehensive documentation for frontend developers integrating with the Autoresponse Tauri backend.
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Authentication](#authentication)
 - [Service Configuration](#service-configuration)
@@ -16,7 +17,7 @@ This document provides comprehensive documentation for frontend developers integ
 All interactions with the backend are handled through Tauri's invoke system. Import the invoke function:
 
 ```typescript
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from "@tauri-apps/api/tauri";
 ```
 
 ## Authentication
@@ -26,6 +27,7 @@ OAuth2 authentication is handled per service. Tokens are securely stored in the 
 ## Service Configuration
 
 ### Create Service Config
+
 ```typescript
 interface CreateServiceConfigRequest {
   name: string;
@@ -36,49 +38,57 @@ interface CreateServiceConfigRequest {
 }
 
 // Usage
-const response = await invoke<ServiceConfigResponse>('create_service_config', {
-  requestJson: JSON.stringify(request)
+const response = await invoke<ServiceConfigResponse>("create_service_config", {
+  requestJson: JSON.stringify(request),
 });
 ```
 
 ### Get Service Config
+
 ```typescript
-const config = await invoke<ServiceConfigResponse>('get_service_config', {
-  id: 'config-id'
+const config = await invoke<ServiceConfigResponse>("get_service_config", {
+  id: "config-id",
 });
 ```
 
 ### Get All Service Configs
+
 ```typescript
-const configs = await invoke<ServiceConfigListResponse>('get_all_service_configs');
+const configs = await invoke<ServiceConfigListResponse>(
+  "get_all_service_configs",
+);
 ```
 
 ### Update Auth Config
+
 ```typescript
 interface UpdateServiceAuthRequest {
   authConfig: AuthConfig;
 }
 
-await invoke('update_auth_config', {
-  id: 'config-id',
-  requestJson: JSON.stringify(request)
+await invoke("update_auth_config", {
+  id: "config-id",
+  requestJson: JSON.stringify(request),
 });
 ```
 
 ### Enable/Disable Service
+
 ```typescript
-await invoke('enable_service', { id: 'config-id' });
-await invoke('disable_service', { id: 'config-id' });
+await invoke("enable_service", { id: "config-id" });
+await invoke("disable_service", { id: "config-id" });
 ```
 
 ### Delete Service Config
+
 ```typescript
-await invoke('delete_service_config', { id: 'config-id' });
+await invoke("delete_service_config", { id: "config-id" });
 ```
 
 ## Notifications
 
 ### Create Notification
+
 ```typescript
 interface CreateNotificationRequest {
   title: string;
@@ -87,19 +97,21 @@ interface CreateNotificationRequest {
   metadata: NotificationMetadata;
 }
 
-const notification = await invoke<NotificationResponse>('create_notification', {
-  requestJson: JSON.stringify(request)
+const notification = await invoke<NotificationResponse>("create_notification", {
+  requestJson: JSON.stringify(request),
 });
 ```
 
 ### Get Notification
+
 ```typescript
-const notification = await invoke<NotificationResponse>('get_notification', {
-  id: 'notification-id'
+const notification = await invoke<NotificationResponse>("get_notification", {
+  id: "notification-id",
 });
 ```
 
 ### Get All Notifications
+
 ```typescript
 interface NotificationFilterRequest {
   status?: NotificationStatus;
@@ -112,36 +124,41 @@ interface NotificationFilterRequest {
   perPage?: number;
 }
 
-const notifications = await invoke<NotificationListResponse>('get_all_notifications', {
-  filterJson: JSON.stringify(filter) // Optional
-});
+const notifications = await invoke<NotificationListResponse>(
+  "get_all_notifications",
+  {
+    filterJson: JSON.stringify(filter), // Optional
+  },
+);
 ```
 
 ### Notification Status Management
+
 ```typescript
 // Mark as read
-await invoke('mark_as_read', { id: 'notification-id' });
+await invoke("mark_as_read", { id: "notification-id" });
 
 // Mark action required
-await invoke('mark_action_required', { id: 'notification-id' });
+await invoke("mark_action_required", { id: "notification-id" });
 
 // Mark action taken
-await invoke('mark_action_taken', { id: 'notification-id' });
+await invoke("mark_action_taken", { id: "notification-id" });
 
 // Archive
-await invoke('archive_notification', { id: 'notification-id' });
+await invoke("archive_notification", { id: "notification-id" });
 
 // Delete
-await invoke('delete_notification', { id: 'notification-id' });
+await invoke("delete_notification", { id: "notification-id" });
 ```
 
 ### Bulk Operations
+
 ```typescript
 // Mark all as read
-await invoke('mark_all_notifications_read');
+await invoke("mark_all_notifications_read");
 
 // Archive all read notifications
-await invoke('archive_all_read_notifications');
+await invoke("archive_all_read_notifications");
 ```
 
 ## MCP Server
@@ -149,6 +166,7 @@ await invoke('archive_all_read_notifications');
 The Message Control Protocol (MCP) server provides unified access to various services through REST endpoints.
 
 ### Health Check
+
 ```typescript
 GET /health
 Response: {
@@ -159,6 +177,7 @@ Response: {
 ```
 
 ### Content Analysis
+
 ```typescript
 POST /api/analyze
 Request: {
@@ -179,6 +198,7 @@ Response: {
 ```
 
 ### Response Generation
+
 ```typescript
 POST /api/generate
 Request: {
@@ -194,6 +214,7 @@ Response: {
 ```
 
 ### Web Search
+
 ```typescript
 POST /api/search
 Request: {
@@ -214,6 +235,7 @@ Response: {
 ```
 
 All MCP server endpoints require authentication via API key and return responses in a standardized format:
+
 ```typescript
 interface MCPResponse<T> {
   success: boolean;
@@ -227,23 +249,24 @@ interface MCPResponse<T> {
 For error types and handling, please refer to the [shared types documentation](shared/types.md#error-types).
 
 ### Error Handling Example
+
 ```typescript
 try {
-  await invoke('create_service_config', {
-    requestJson: JSON.stringify(request)
+  await invoke("create_service_config", {
+    requestJson: JSON.stringify(request),
   });
 } catch (error) {
   if (error instanceof Error) {
     // Handle specific error types
     switch (error.constructor.name) {
-      case 'ValidationError':
+      case "ValidationError":
         // Handle validation error
         break;
-      case 'ServiceConfigError':
+      case "ServiceConfigError":
         // Handle service config error
         break;
       default:
-        // Handle unknown error
+      // Handle unknown error
     }
   }
 }
