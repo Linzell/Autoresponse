@@ -1,11 +1,13 @@
 use crate::domain::entities::{AuthConfig, OAuth2Config, ServiceType};
 use crate::domain::error::{DomainError, DomainResult};
 use crate::domain::repositories::ServiceConfigRepository;
+use crate::domain::{AuthType, ServiceConfig, ServiceEndpoints};
+use crate::infrastructure::env::get_env_or;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-const DEFAULT_REDIRECT_URI: &str = "http://localhost:1420/oauth/callback";
+const DEFAULT_REDIRECT_URI: &str = "autoresponse://oauth/callback";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenResponse {
@@ -62,12 +64,11 @@ impl DefaultOAuthService {
         }
     }
 
-    #[allow(dead_code)]
     fn get_default_oauth_config(&self, service_type: ServiceType) -> OAuth2Config {
         match service_type {
             ServiceType::Github => OAuth2Config {
-                client_id: String::new(),
-                client_secret: String::new(),
+                client_id: get_env_or("GITHUB_CLIENT_ID", ""),
+                client_secret: get_env_or("GITHUB_CLIENT_SECRET", ""),
                 redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://github.com/login/oauth/authorize".to_string(),
                 token_url: "https://github.com/login/oauth/access_token".to_string(),
@@ -81,8 +82,8 @@ impl DefaultOAuthService {
                 token_expires_at: None,
             },
             ServiceType::Google => OAuth2Config {
-                client_id: String::new(),
-                client_secret: String::new(),
+                client_id: get_env_or("GOOGLE_CLIENT_ID", ""),
+                client_secret: get_env_or("GOOGLE_CLIENT_SECRET", ""),
                 redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
                 token_url: "https://oauth2.googleapis.com/token".to_string(),
@@ -96,8 +97,8 @@ impl DefaultOAuthService {
                 token_expires_at: None,
             },
             ServiceType::Microsoft => OAuth2Config {
-                client_id: String::new(),
-                client_secret: String::new(),
+                client_id: get_env_or("MICROSOFT_CLIENT_ID", ""),
+                client_secret: get_env_or("MICROSOFT_CLIENT_SECRET", ""),
                 redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
                     .to_string(),
@@ -112,8 +113,8 @@ impl DefaultOAuthService {
                 token_expires_at: None,
             },
             ServiceType::Gitlab => OAuth2Config {
-                client_id: String::new(),
-                client_secret: String::new(),
+                client_id: get_env_or("GITLAB_CLIENT_ID", ""),
+                client_secret: get_env_or("GITLAB_CLIENT_SECRET", ""),
                 redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://gitlab.com/oauth/authorize".to_string(),
                 token_url: "https://gitlab.com/oauth/token".to_string(),
@@ -123,8 +124,8 @@ impl DefaultOAuthService {
                 token_expires_at: None,
             },
             ServiceType::LinkedIn => OAuth2Config {
-                client_id: String::new(),
-                client_secret: String::new(),
+                client_id: get_env_or("LINKEDIN_CLIENT_ID", ""),
+                client_secret: get_env_or("LINKEDIN_CLIENT_SECRET", ""),
                 redirect_uri: DEFAULT_REDIRECT_URI.to_string(),
                 auth_url: "https://www.linkedin.com/oauth/v2/authorization".to_string(),
                 token_url: "https://www.linkedin.com/oauth/v2/accessToken".to_string(),
@@ -158,7 +159,79 @@ impl OAuthService for DefaultOAuthService {
         &self,
         service_type: ServiceType,
     ) -> Result<String, DomainError> {
-        let config = self.get_oauth_config(service_type.clone()).await?;
+        // Get the base OAuth config for this service type
+        let config = match self.get_oauth_config(service_type.clone()).await {
+            Ok(mut config) => {
+                // If config exists but has empty credentials, update it with env vars
+                if config.client_id.is_empty() {
+                    let default_config = self.get_default_oauth_config(service_type.clone());
+                    config.client_id = default_config.client_id;
+                    config.client_secret = default_config.client_secret;
+
+                    // Update the config in the repository
+                    let mut service_config = self
+                        .config_repository
+                        .find_by_service_type(service_type.clone())
+                        .await?
+                        .first()
+                        .ok_or_else(|| {
+                            DomainError::NotFound("Service configuration not found".to_string())
+                        })?
+                        .clone();
+
+                    match &mut service_config.auth_config {
+                        AuthConfig::OAuth2(oauth_config) => {
+                            oauth_config.client_id = config.client_id.clone();
+                            oauth_config.client_secret = config.client_secret.clone();
+                        }
+                        _ => {
+                            return Err(DomainError::InvalidOperation(
+                                "Invalid auth configuration type".to_string(),
+                            ))
+                        }
+                    }
+
+                    self.config_repository
+                        .update_auth_config(service_config.id, service_config.auth_config)
+                        .await?;
+                }
+                config
+            }
+            Err(DomainError::NotFound(_)) => {
+                // If not found, create a new config with environment variables
+                let default_config = self.get_default_oauth_config(service_type.clone());
+                tracing::info!("Default config: {:?}", default_config);
+
+                // Save the config to repository
+                let mut service_config = ServiceConfig::new(
+                    format!("{:?} Integration", service_type),
+                    service_type.clone(),
+                    AuthType::OAuth2,
+                    AuthConfig::OAuth2(default_config.clone()),
+                    ServiceEndpoints {
+                        base_url: String::new(),
+                        endpoints: serde_json::Map::new(),
+                    },
+                );
+
+                self.config_repository
+                    .save(&mut service_config)
+                    .await
+                    .map_err(|e| DomainError::InvalidOperation(e.to_string()))?;
+
+                default_config
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Validate client ID is present
+        if config.client_id.is_empty() {
+            return Err(DomainError::InvalidOperation(format!(
+                "OAuth client_id not configured for {:?}. Please check your environment variables.",
+                service_type
+            )));
+        }
+
         let mut url = reqwest::Url::parse(&config.auth_url)
             .map_err(|e| DomainError::InvalidOperation(e.to_string()))?;
         let mut query_pairs = url.query_pairs_mut();
@@ -166,22 +239,27 @@ impl OAuthService for DefaultOAuthService {
         query_pairs
             .append_pair("client_id", &config.client_id)
             .append_pair("redirect_uri", &config.redirect_uri)
+            .append_pair("state", &uuid::Uuid::new_v4().to_string())
             .append_pair("scope", &config.scope.join(" "))
-            .append_pair("response_type", "code")
-            .append_pair("state", &uuid::Uuid::new_v4().to_string());
+            .append_pair("allow_signup", "true");
 
         // Add service-specific parameters
         match service_type {
+            ServiceType::Github => {
+                // GitHub specific settings
+                query_pairs.append_pair("prompt", "select_account");
+            }
+            ServiceType::Google => {
+                query_pairs
+                    .append_pair("response_type", "code")
+                    .append_pair("access_type", "offline")
+                    .append_pair("prompt", "consent");
+            }
             ServiceType::Microsoft => {
                 query_pairs.append_pair("prompt", "consent");
             }
             ServiceType::LinkedIn => {
                 query_pairs.append_pair("response_type", "code");
-            }
-            ServiceType::Google => {
-                query_pairs
-                    .append_pair("access_type", "offline")
-                    .append_pair("prompt", "consent");
             }
             _ => {}
         }

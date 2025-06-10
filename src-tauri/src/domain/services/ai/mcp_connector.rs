@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
-use tokio::time::timeout;
+use tokio::{sync::RwLock, time::timeout};
 
 use super::{AIAnalysis, AIService};
 
@@ -40,31 +40,29 @@ struct MCPResponse {
 
 #[derive(Debug)]
 pub struct MCPConnector {
-    config: MCPConfig,
+    config: Arc<RwLock<MCPConfig>>,
     client: Client,
 }
 
 impl MCPConnector {
     pub fn new(config: MCPConfig) -> Self {
         Self {
-            config,
+            config: Arc::new(RwLock::new(config)),
             client: Client::new(),
         }
     }
 
     async fn send_request(&self, content: &str, service_type: &str) -> DomainResult<String> {
+        let config = self.config.read().await;
         let request = MCPRequest {
             content: content.to_string(),
-            api_key: self.config.api_key.clone(),
+            api_key: config.api_key.clone(),
             service_type: service_type.to_string(),
         };
 
         let response = timeout(
-            Duration::from_secs(self.config.timeout_seconds),
-            self.client
-                .post(&self.config.endpoint)
-                .json(&request)
-                .send(),
+            Duration::from_secs(config.timeout_seconds),
+            self.client.post(&config.endpoint).json(&request).send(),
         )
         .await
         .map_err(|e| {
@@ -101,6 +99,44 @@ impl AIService for MCPConnector {
 
     async fn generate_response(&self, context: &str) -> DomainResult<String> {
         self.send_request(context, "generate").await
+    }
+
+    async fn configure(
+        &self,
+        config: crate::presentation::dtos::AIConfigRequest,
+    ) -> DomainResult<()> {
+        let mut mcp_config = self.config.write().await;
+        *mcp_config = MCPConfig {
+            endpoint: config
+                .local_model_path
+                .unwrap_or_else(|| "http://localhost:5000".to_string()),
+            api_key: String::new(),
+            timeout_seconds: 30,
+        };
+        Ok(())
+    }
+
+    async fn test_connection(
+        &self,
+        _config: &crate::presentation::dtos::AIConfigRequest,
+    ) -> DomainResult<()> {
+        let config = self.config.read().await;
+        let response = timeout(
+            Duration::from_secs(config.timeout_seconds),
+            self.client.get(&config.endpoint).send(),
+        )
+        .await
+        .map_err(|e| {
+            DomainError::ExternalServiceError(format!("Failed to connect to MCP: {}", e))
+        })??;
+
+        if !response.status().is_success() {
+            return Err(DomainError::ExternalServiceError(
+                "MCP connection test failed".into(),
+            ));
+        }
+
+        Ok(())
     }
 }
 

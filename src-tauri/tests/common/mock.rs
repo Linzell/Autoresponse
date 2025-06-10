@@ -1,7 +1,8 @@
 use autoresponse_lib::domain::{
     entities::{
-        AuthConfig, AuthType, Notification, NotificationMetadata, NotificationPriority,
-        NotificationSource, NotificationStatus, ServiceConfig, ServiceEndpoints, ServiceType,
+        AuthConfig, AuthType, Notification, NotificationMetadata, NotificationPreferences,
+        NotificationPriority, NotificationSource, NotificationStatus, ServiceConfig,
+        ServiceEndpoints, ServiceType,
     },
     error::DomainResult,
     services::{
@@ -37,6 +38,7 @@ mockall::mock! {
         async fn analyze_notification_content(&self, notification: &Notification) -> DomainResult<bool>;
         async fn generate_response(&self, notification: &Notification) -> DomainResult<String>;
         async fn execute_action(&self, notification: &Notification) -> DomainResult<()>;
+        async fn save_preferences(&self, preferences: NotificationPreferences) -> DomainResult<()>;
     }
 }
 
@@ -60,6 +62,8 @@ mockall::mock! {
     impl AIService for AIService {
         async fn analyze_content(&self, content: &str) -> DomainResult<AIAnalysis>;
         async fn generate_response(&self, context: &str) -> DomainResult<String>;
+        async fn configure(&self, config: autoresponse_lib::presentation::dtos::AIConfigRequest) -> DomainResult<()>;
+        async fn test_connection(&self, config: &autoresponse_lib::presentation::dtos::AIConfigRequest) -> DomainResult<()>;
     }
 }
 

@@ -1,14 +1,16 @@
-use crate::domain::error::DomainResult;
-use async_trait::async_trait;
+use crate::domain::{
+    error::DomainResult,
+    services::ai::{FormalityLevel, ResponseLength, ResponseTone, UserPreferences},
+};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio::time::timeout;
+use tokio::{sync::RwLock, time::timeout};
 
 use super::super::{AIAnalysis, AIConfig, AIService};
 
@@ -69,7 +71,7 @@ impl ConversationMemory {
 
 #[derive(Debug)]
 pub struct OllamaService {
-    pub config: AIConfig,
+    pub config: Arc<RwLock<AIConfig>>,
     pub client: Client,
     pub memory: Arc<Mutex<ConversationMemory>>,
 }
@@ -77,23 +79,24 @@ pub struct OllamaService {
 impl OllamaService {
     pub fn new(config: AIConfig) -> Self {
         Self {
-            config,
+            config: Arc::new(RwLock::new(config)),
             client: Client::new(),
             memory: Arc::new(Mutex::new(ConversationMemory::new(10))),
         }
     }
 
-    async fn send_prompt(&self, prompt: &str) -> DomainResult<String> {
+    async fn send_prompt(&self, prompt: String) -> DomainResult<String> {
+        let config = self.config.read().await;
         let request = OllamaRequest {
-            model: self.config.model.clone(),
-            prompt: prompt.to_string(),
+            model: config.model.clone(),
+            prompt,
             stream: false,
         };
 
         let response = timeout(
-            Duration::from_secs(self.config.timeout_seconds),
+            Duration::from_secs(config.timeout_seconds),
             self.client
-                .post(format!("{}/api/generate", self.config.base_url))
+                .post(format!("{}/api/generate", config.base_url))
                 .json(&request)
                 .send(),
         )
@@ -110,7 +113,7 @@ impl OllamaService {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl AIService for OllamaService {
     async fn analyze_content(&self, content: &str) -> DomainResult<AIAnalysis> {
         let prompt = format!(
@@ -124,7 +127,7 @@ impl AIService for OllamaService {
             content
         );
 
-        let response = self.send_prompt(&prompt).await?;
+        let response = self.send_prompt(prompt).await?;
 
         serde_json::from_str(&response).map_err(|e| {
             DomainError::ValidationError(format!("Failed to parse AI analysis: {}", e))
@@ -132,7 +135,8 @@ impl AIService for OllamaService {
     }
 
     async fn generate_response(&self, context: &str) -> DomainResult<String> {
-        let prefs = &self.config.user_preferences;
+        let config = self.config.read().await;
+        let prefs = &config.user_preferences;
         let tone = format!("{:?}", prefs.tone).to_lowercase();
         let length = format!("{:?}", prefs.length).to_lowercase();
         let formality = format!("{:?}", prefs.formality_level).to_lowercase();
@@ -144,6 +148,7 @@ impl AIService for OllamaService {
             .lock()
             .expect("Failed to acquire lock on memory for conversation history")
             .get_context();
+
         let prompt = format!(
             "Generate a response for the following context, adhering to these specifications:\n\
             Tone: {}\n\
@@ -163,12 +168,61 @@ impl AIService for OllamaService {
             .unwrap()
             .add_entry("User".to_string(), context.to_string());
 
-        let response = self.send_prompt(&prompt).await?;
+        let response = self.send_prompt(prompt).await?;
         self.memory
             .lock()
             .unwrap()
             .add_entry("Assistant".to_string(), response.clone());
         Ok(response)
+    }
+
+    async fn configure(
+        &self,
+        config: crate::presentation::dtos::AIConfigRequest,
+    ) -> DomainResult<()> {
+        let mut ai_config = self.config.write().await;
+        *ai_config = AIConfig {
+            model: config.model,
+            base_url: "http://localhost:11434".to_string(), // Could be made configurable
+            timeout_seconds: 30,
+            user_preferences: UserPreferences {
+                // Map AIConfigRequest preferences to UserPreferences
+                tone: ResponseTone::Professional, // Map based on config.response_style
+                length: ResponseLength::Medium,
+                language: "en".to_string(),
+                formality_level: FormalityLevel::Standard,
+                custom_instructions: config.custom_prompt.map(|p| vec![p]).unwrap_or_default(),
+                response_templates: HashMap::new(),
+            },
+        };
+        Ok(())
+    }
+
+    async fn test_connection(
+        &self,
+        config: &crate::presentation::dtos::AIConfigRequest,
+    ) -> DomainResult<()> {
+        let cur_config = self.config.read().await;
+        let request = OllamaRequest {
+            model: config.model.clone(),
+            prompt: "Test connection".to_string(),
+            stream: false,
+        };
+
+        // Try to send a request to verify connection
+        timeout(
+            Duration::from_secs(5), // Short timeout for test
+            self.client
+                .post(format!("{}/api/generate", cur_config.base_url))
+                .json(&request)
+                .send(),
+        )
+        .await
+        .map_err(|e| {
+            DomainError::ExternalServiceError(format!("AI service connection test failed: {}", e))
+        })??;
+
+        Ok(())
     }
 }
 

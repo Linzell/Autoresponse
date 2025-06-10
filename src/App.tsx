@@ -1,50 +1,50 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+import { useState, useEffect } from "react";
+import { ThemeProvider, CssBaseline } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SetupWizardProvider } from "./features/setup-wizard/SetupWizardProvider";
+import SetupWizard from "./features/setup-wizard/SetupWizard";
+import { theme } from "./theme";
+import { invoke } from "@tauri-apps/api/core";
+
+const queryClient = new QueryClient();
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [isFirstRun, setIsFirstRun] = useState<boolean | null>(null);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  useEffect(() => {
+    const checkFirstRun = async () => {
+      try {
+        const result = await invoke('check_first_run');
+        setIsFirstRun(result as boolean);
+      } catch (error) {
+        console.error('Failed to check first run status:', error);
+        setIsFirstRun(false);
+      }
+    };
+
+    checkFirstRun();
+  }, []);
+
+  if (isFirstRun === null) {
+    return null; // Loading state
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {isFirstRun ? (
+          <SetupWizardProvider>
+            <SetupWizard />
+          </SetupWizardProvider>
+        ) : (
+          <main className="container">
+            {/* Main application content will go here */}
+          </main>
+        )}
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

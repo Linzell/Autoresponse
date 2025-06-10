@@ -244,8 +244,11 @@ impl JobHandler for NotificationProcessor {
 mod tests {
     use super::*;
     use crate::domain::{
-        entities::notification::{
-            Notification, NotificationMetadata, NotificationPriority, NotificationSource,
+        entities::{
+            notification::{
+                Notification, NotificationMetadata, NotificationPriority, NotificationSource,
+            },
+            NotificationPreferences,
         },
         events::NoopEventPublisher,
         repositories::NotificationRepository,
@@ -399,6 +402,13 @@ mod tests {
         }
 
         async fn execute_action(&self, _notification: &Notification) -> DomainResult<()> {
+            Ok(())
+        }
+
+        async fn save_preferences(
+            &self,
+            _preferences: NotificationPreferences,
+        ) -> DomainResult<()> {
             Ok(())
         }
     }

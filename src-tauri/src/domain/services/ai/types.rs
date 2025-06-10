@@ -90,7 +90,19 @@ pub trait AIService: Send + Sync + std::fmt::Debug {
         &self,
         content: &str,
     ) -> crate::domain::error::DomainResult<AIAnalysis>;
+
     async fn generate_response(&self, context: &str) -> crate::domain::error::DomainResult<String>;
+
+    async fn configure(
+        &self,
+        config: crate::presentation::dtos::AIConfigRequest,
+    ) -> crate::domain::error::DomainResult<()>;
+
+    async fn test_connection(
+        &self,
+        config: &crate::presentation::dtos::AIConfigRequest,
+    ) -> crate::domain::error::DomainResult<()>;
 }
 
+// Change from Mutex to RwLock since we need concurrent read access
 pub type DynAIService = Arc<dyn AIService>;

@@ -1,5 +1,8 @@
 use crate::domain::{
-    entities::{Notification, NotificationMetadata, NotificationPriority, NotificationStatus},
+    entities::{
+        Notification, NotificationMetadata, NotificationPreferences, NotificationPriority,
+        NotificationStatus,
+    },
     error::{DomainError, DomainResult},
     repositories::DynNotificationRepository,
     services::{
@@ -53,6 +56,7 @@ pub trait NotificationService: Send + Sync + std::fmt::Debug {
         -> DomainResult<bool>;
     async fn generate_response(&self, notification: &Notification) -> DomainResult<String>;
     async fn execute_action(&self, notification: &Notification) -> DomainResult<()>;
+    async fn save_preferences(&self, preferences: NotificationPreferences) -> DomainResult<()>;
 }
 
 #[derive(Debug)]
@@ -229,6 +233,31 @@ impl NotificationService for DefaultNotificationService {
 
         // Fall back to default action executor
         self.action_executor.execute(notification).await
+    }
+
+    async fn save_preferences(&self, preferences: NotificationPreferences) -> DomainResult<()> {
+        // Create a ProjectDirs instance and keep it around
+        let proj_dirs =
+            directories::ProjectDirs::from("com", "autoresponse", "app").ok_or_else(|| {
+                DomainError::ConfigurationError("Failed to get config directory".into())
+            })?;
+
+        let config_dir = proj_dirs.config_dir();
+
+        std::fs::create_dir_all(config_dir).map_err(|e| {
+            DomainError::ConfigurationError(format!("Failed to create config directory: {}", e))
+        })?;
+
+        let preferences_file = config_dir.join("notification_preferences.json");
+        let preferences_json = serde_json::to_string_pretty(&preferences).map_err(|e| {
+            DomainError::ConfigurationError(format!("Failed to serialize preferences: {}", e))
+        })?;
+
+        std::fs::write(preferences_file, preferences_json).map_err(|e| {
+            DomainError::ConfigurationError(format!("Failed to save preferences: {}", e))
+        })?;
+
+        Ok(())
     }
 }
 
