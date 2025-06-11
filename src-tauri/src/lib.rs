@@ -7,9 +7,15 @@ pub mod presentation;
 pub mod test_utils;
 
 use application::{use_cases::MCPServerUseCases, NotificationUseCases, ServiceConfigUseCases};
-use commands::oauth::{
-    delete_oauth_service_config, get_service_configs, handle_oauth_callback, save_oauth_config,
-    start_oauth_flow,
+use commands::{
+    oauth::{
+        delete_oauth_service_config, get_service_configs, handle_oauth_callback, save_oauth_config,
+        start_oauth_flow,
+    },
+    setup::{
+        check_first_run, complete_setup, save_ai_config, save_notification_preferences,
+        test_ai_connection,
+    },
 };
 use domain::{
     services::{
@@ -316,6 +322,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let notification_controller = NotificationController::new(notification_service);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -352,6 +359,12 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
             delete_notification,
             mark_all_notifications_read,
             archive_all_read_notifications,
+            // Setup Commands
+            check_first_run,
+            save_notification_preferences,
+            save_ai_config,
+            test_ai_connection,
+            complete_setup,
         ])
         .run(tauri::generate_context!())
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
